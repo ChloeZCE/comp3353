@@ -4,76 +4,8 @@ Name: Zheng Choi I
 University Number: 3035987788
 Email: u3598778@connect.hku.hk
 
-Language: Python 3. Positions are 1-based throughout. `src/common.py` is
-shared by all scripts below.
-
-```python
-"""Shared helpers for the COMP3353 Assignment 1 scripts."""
-
-COMPLEMENT = str.maketrans("ACGTacgtNn", "TGCAtgcaNn")
-
-STANDARD_CODON_TABLE = {
-    "TTT": "F", "TTC": "F", "TTA": "L", "TTG": "L",
-    "CTT": "L", "CTC": "L", "CTA": "L", "CTG": "L",
-    "ATT": "I", "ATC": "I", "ATA": "I", "ATG": "M",
-    "GTT": "V", "GTC": "V", "GTA": "V", "GTG": "V",
-    "TCT": "S", "TCC": "S", "TCA": "S", "TCG": "S",
-    "CCT": "P", "CCC": "P", "CCA": "P", "CCG": "P",
-    "ACT": "T", "ACC": "T", "ACA": "T", "ACG": "T",
-    "GCT": "A", "GCC": "A", "GCA": "A", "GCG": "A",
-    "TAT": "Y", "TAC": "Y", "TAA": "*", "TAG": "*",
-    "CAT": "H", "CAC": "H", "CAA": "Q", "CAG": "Q",
-    "AAT": "N", "AAC": "N", "AAA": "K", "AAG": "K",
-    "GAT": "D", "GAC": "D", "GAA": "E", "GAG": "E",
-    "TGT": "C", "TGC": "C", "TGA": "*", "TGG": "W",
-    "CGT": "R", "CGC": "R", "CGA": "R", "CGG": "R",
-    "AGT": "S", "AGC": "S", "AGA": "R", "AGG": "R",
-    "GGT": "G", "GGC": "G", "GGA": "G", "GGG": "G",
-}
-
-STOP_CODONS = {"TAA", "TAG", "TGA"}
-
-
-def read_fasta_records(path):
-    """Yield (header, sequence) tuples without external deps, sequence as one string."""
-    header = None
-    chunks = []
-    with open(path) as f:
-        for line in f:
-            line = line.rstrip("\n")
-            if line.startswith(">"):
-                if header is not None:
-                    yield header, "".join(chunks)
-                header = line[1:]
-                chunks = []
-            else:
-                chunks.append(line)
-    if header is not None:
-        yield header, "".join(chunks)
-
-
-def reverse_complement(seq):
-    return seq.translate(COMPLEMENT)[::-1]
-
-
-def translate_codon(codon):
-    return STANDARD_CODON_TABLE.get(codon.upper(), "X")
-
-
-def count_overlapping(seq, motif):
-    """Count overlapping, case-insensitive occurrences of motif in seq."""
-    seq_u = seq.upper()
-    motif_u = motif.upper()
-    count = 0
-    start = 0
-    while True:
-        idx = seq_u.find(motif_u, start)
-        if idx == -1:
-            break
-        count += 1
-        start = idx + 1
-    return count
-```
+Language: Python 3 (standard library only, except `numpy`/`matplotlib` for
+Q4/Q5). Positions are 1-based throughout. Each script is self-contained.
 
 ## 1. Counting DNA nucleotides
 
@@ -112,11 +44,39 @@ Counts overlapping, case-insensitive matches on the forward strand only.
 Each FASTA record is searched independently (matches are not allowed to span
 across two different records), and counts are summed across all records.
 """
-import sys
-import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-from common import read_fasta_records, count_overlapping
+
+def read_fasta_records(path):
+    """Yield (header, sequence) tuples, sequence as one string per record."""
+    header = None
+    chunks = []
+    with open(path) as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if line.startswith(">"):
+                if header is not None:
+                    yield header, "".join(chunks)
+                header = line[1:]
+                chunks = []
+            else:
+                chunks.append(line)
+    if header is not None:
+        yield header, "".join(chunks)
+
+
+def count_overlapping(seq, motif):
+    """Count overlapping, case-insensitive occurrences of motif in seq."""
+    seq_u = seq.upper()
+    motif_u = motif.upper()
+    count = 0
+    start = 0
+    while True:
+        idx = seq_u.find(motif_u, start)
+        if idx == -1:
+            break
+        count += 1
+        start = idx + 1
+    return count
 
 
 def count_motif_in_file(path, motif):
@@ -154,14 +114,27 @@ non-majority symbols" alone does not distinguish them. Entropy is also the
 natural building block for the mutual-information metric used in Q4, so using
 it here keeps the two questions' variability measures consistent.
 """
-import sys
-import os
 from math import log2
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-from common import read_fasta_records
-
 BASES = "ACGT"
+
+
+def read_fasta_records(path):
+    """Yield (header, sequence) tuples, sequence as one string per record."""
+    header = None
+    chunks = []
+    with open(path) as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if line.startswith(">"):
+                if header is not None:
+                    yield header, "".join(chunks)
+                header = line[1:]
+                chunks = []
+            else:
+                chunks.append(line)
+    if header is not None:
+        yield header, "".join(chunks)
 
 
 def load_alignment(path):
@@ -253,20 +226,31 @@ co-occurrence counts for every pair of columns (and, on its diagonal blocks,
 each column's own marginal counts), which is far faster than a naive
 Python triple-nested loop for alignments with hundreds of columns.
 """
-import sys
-import os
-from math import log2
-
 import numpy as np
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-from common import read_fasta_records
 
 AMINO_ACIDS = "ACDEFGHIKLMNPQRSTVWY"
 GAP = "-"
 ALPHABET = AMINO_ACIDS + GAP  # 21 symbols, gap last
 SYMBOL_INDEX = {ch: i for i, ch in enumerate(ALPHABET)}
 N_SYMBOLS = len(ALPHABET)
+
+
+def read_fasta_records(path):
+    """Yield (header, sequence) tuples, sequence as one string per record."""
+    header = None
+    chunks = []
+    with open(path) as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if line.startswith(">"):
+                if header is not None:
+                    yield header, "".join(chunks)
+                header = line[1:]
+                chunks = []
+            else:
+                chunks.append(line)
+    if header is not None:
+        yield header, "".join(chunks)
 
 
 def load_alignment(path):
@@ -375,7 +359,6 @@ MISLIVAMAENGVIGKDNDLPWHLPEDLKYFKRLTLGKPVIMGRKTWESIGRPLPGRRNIVLSRDPDYQAEGVEVVHSLE
 Runs all four sub-questions (a-d) and writes a fragment-length histogram to
 results/q5d_fragment_length_hist.png.
 """
-import sys
 import os
 import re
 import statistics
@@ -383,10 +366,45 @@ import statistics
 FASTA_PATH = "data/Q1/chr22.fa"
 OUTDIR = "results"
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-from common import read_fasta_records, reverse_complement, count_overlapping
-
 SITE = "GATATC"
+COMPLEMENT = str.maketrans("ACGTacgtNn", "TGCAtgcaNn")
+
+
+def read_fasta_records(path):
+    """Yield (header, sequence) tuples, sequence as one string per record."""
+    header = None
+    chunks = []
+    with open(path) as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if line.startswith(">"):
+                if header is not None:
+                    yield header, "".join(chunks)
+                header = line[1:]
+                chunks = []
+            else:
+                chunks.append(line)
+    if header is not None:
+        yield header, "".join(chunks)
+
+
+def reverse_complement(seq):
+    return seq.translate(COMPLEMENT)[::-1]
+
+
+def count_overlapping(seq, motif):
+    """Count overlapping, case-insensitive occurrences of motif in seq."""
+    seq_u = seq.upper()
+    motif_u = motif.upper()
+    count = 0
+    start = 0
+    while True:
+        idx = seq_u.find(motif_u, start)
+        if idx == -1:
+            break
+        count += 1
+        start = idx + 1
+    return count
 
 
 def load_single_sequence(path):
@@ -542,16 +560,61 @@ forward-strand coordinate), and "end" is the last base of the stop codon
 (the *lower* forward-strand coordinate) -- this keeps "start"/"end" meaning
 "where translation begins/ends" on each ORF's own strand.
 """
-import sys
 import os
 import csv
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-from common import read_fasta_records, reverse_complement, translate_codon, STOP_CODONS
 
 FASTA_PATH = "data/Q6/ecoli_genome.fa"
 OUT_CSV = "results/q6_orfs.csv"
 MIN_PROTEIN_LEN = 100
+
+COMPLEMENT = str.maketrans("ACGTacgtNn", "TGCAtgcaNn")
+
+CODON_TABLE = {
+    "TTT": "F", "TTC": "F", "TTA": "L", "TTG": "L",
+    "CTT": "L", "CTC": "L", "CTA": "L", "CTG": "L",
+    "ATT": "I", "ATC": "I", "ATA": "I", "ATG": "M",
+    "GTT": "V", "GTC": "V", "GTA": "V", "GTG": "V",
+    "TCT": "S", "TCC": "S", "TCA": "S", "TCG": "S",
+    "CCT": "P", "CCC": "P", "CCA": "P", "CCG": "P",
+    "ACT": "T", "ACC": "T", "ACA": "T", "ACG": "T",
+    "GCT": "A", "GCC": "A", "GCA": "A", "GCG": "A",
+    "TAT": "Y", "TAC": "Y", "TAA": "*", "TAG": "*",
+    "CAT": "H", "CAC": "H", "CAA": "Q", "CAG": "Q",
+    "AAT": "N", "AAC": "N", "AAA": "K", "AAG": "K",
+    "GAT": "D", "GAC": "D", "GAA": "E", "GAG": "E",
+    "TGT": "C", "TGC": "C", "TGA": "*", "TGG": "W",
+    "CGT": "R", "CGC": "R", "CGA": "R", "CGG": "R",
+    "AGT": "S", "AGC": "S", "AGA": "R", "AGG": "R",
+    "GGT": "G", "GGC": "G", "GGA": "G", "GGG": "G",
+}
+
+STOP_CODONS = {"TAA", "TAG", "TGA"}
+
+
+def read_fasta_records(path):
+    """Yield (header, sequence) tuples, sequence as one string per record."""
+    header = None
+    chunks = []
+    with open(path) as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if line.startswith(">"):
+                if header is not None:
+                    yield header, "".join(chunks)
+                header = line[1:]
+                chunks = []
+            else:
+                chunks.append(line)
+    if header is not None:
+        yield header, "".join(chunks)
+
+
+def reverse_complement(seq):
+    return seq.translate(COMPLEMENT)[::-1]
+
+
+def translate_codon(codon):
+    return CODON_TABLE.get(codon.upper(), "X")
 
 
 def find_orfs_in_frame(seq, frame):

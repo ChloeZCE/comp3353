@@ -4,11 +4,39 @@ Counts overlapping, case-insensitive matches on the forward strand only.
 Each FASTA record is searched independently (matches are not allowed to span
 across two different records), and counts are summed across all records.
 """
-import sys
-import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-from common import read_fasta_records, count_overlapping
+
+def read_fasta_records(path):
+    """Yield (header, sequence) tuples, sequence as one string per record."""
+    header = None
+    chunks = []
+    with open(path) as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if line.startswith(">"):
+                if header is not None:
+                    yield header, "".join(chunks)
+                header = line[1:]
+                chunks = []
+            else:
+                chunks.append(line)
+    if header is not None:
+        yield header, "".join(chunks)
+
+
+def count_overlapping(seq, motif):
+    """Count overlapping, case-insensitive occurrences of motif in seq."""
+    seq_u = seq.upper()
+    motif_u = motif.upper()
+    count = 0
+    start = 0
+    while True:
+        idx = seq_u.find(motif_u, start)
+        if idx == -1:
+            break
+        count += 1
+        start = idx + 1
+    return count
 
 
 def count_motif_in_file(path, motif):

@@ -3,7 +3,6 @@
 Runs all four sub-questions (a-d) and writes a fragment-length histogram to
 results/q5d_fragment_length_hist.png.
 """
-import sys
 import os
 import re
 import statistics
@@ -11,10 +10,45 @@ import statistics
 FASTA_PATH = "data/Q1/chr22.fa"
 OUTDIR = "results"
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-from common import read_fasta_records, reverse_complement, count_overlapping
-
 SITE = "GATATC"
+COMPLEMENT = str.maketrans("ACGTacgtNn", "TGCAtgcaNn")
+
+
+def read_fasta_records(path):
+    """Yield (header, sequence) tuples, sequence as one string per record."""
+    header = None
+    chunks = []
+    with open(path) as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if line.startswith(">"):
+                if header is not None:
+                    yield header, "".join(chunks)
+                header = line[1:]
+                chunks = []
+            else:
+                chunks.append(line)
+    if header is not None:
+        yield header, "".join(chunks)
+
+
+def reverse_complement(seq):
+    return seq.translate(COMPLEMENT)[::-1]
+
+
+def count_overlapping(seq, motif):
+    """Count overlapping, case-insensitive occurrences of motif in seq."""
+    seq_u = seq.upper()
+    motif_u = motif.upper()
+    count = 0
+    start = 0
+    while True:
+        idx = seq_u.find(motif_u, start)
+        if idx == -1:
+            break
+        count += 1
+        start = idx + 1
+    return count
 
 
 def load_single_sequence(path):

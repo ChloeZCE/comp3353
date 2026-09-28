@@ -17,20 +17,31 @@ co-occurrence counts for every pair of columns (and, on its diagonal blocks,
 each column's own marginal counts), which is far faster than a naive
 Python triple-nested loop for alignments with hundreds of columns.
 """
-import sys
-import os
-from math import log2
-
 import numpy as np
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-from common import read_fasta_records
 
 AMINO_ACIDS = "ACDEFGHIKLMNPQRSTVWY"
 GAP = "-"
 ALPHABET = AMINO_ACIDS + GAP  # 21 symbols, gap last
 SYMBOL_INDEX = {ch: i for i, ch in enumerate(ALPHABET)}
 N_SYMBOLS = len(ALPHABET)
+
+
+def read_fasta_records(path):
+    """Yield (header, sequence) tuples, sequence as one string per record."""
+    header = None
+    chunks = []
+    with open(path) as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if line.startswith(">"):
+                if header is not None:
+                    yield header, "".join(chunks)
+                header = line[1:]
+                chunks = []
+            else:
+                chunks.append(line)
+    if header is not None:
+        yield header, "".join(chunks)
 
 
 def load_alignment(path):

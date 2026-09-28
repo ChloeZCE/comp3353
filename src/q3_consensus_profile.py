@@ -9,14 +9,27 @@ non-majority symbols" alone does not distinguish them. Entropy is also the
 natural building block for the mutual-information metric used in Q4, so using
 it here keeps the two questions' variability measures consistent.
 """
-import sys
-import os
 from math import log2
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-from common import read_fasta_records
-
 BASES = "ACGT"
+
+
+def read_fasta_records(path):
+    """Yield (header, sequence) tuples, sequence as one string per record."""
+    header = None
+    chunks = []
+    with open(path) as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if line.startswith(">"):
+                if header is not None:
+                    yield header, "".join(chunks)
+                header = line[1:]
+                chunks = []
+            else:
+                chunks.append(line)
+    if header is not None:
+        yield header, "".join(chunks)
 
 
 def load_alignment(path):
