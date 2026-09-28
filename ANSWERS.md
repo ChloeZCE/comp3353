@@ -1,14 +1,11 @@
 # COMP3353 Bioinformatics — Assignment 1: Sequence Analysis
 
-**Name:** Zheng Choi I
-**University Number:** 3035987788
-**Email:** u3598778@connect.hku.hk
+Name: Zheng Choi I
+University Number: 3035987788
+Email: u3598778@connect.hku.hk
 
-All code below is implemented in Python 3 (using the standard library plus
-`numpy`/`matplotlib` for Q4/Q5) and is also available, runnable, in this
-submission's `src/` folder. All reported positions use **1-based indexing**.
-`src/common.py` (reproduced once below) is a small shared helper module
-imported by every question's script.
+Language: Python 3. Positions are 1-based throughout. `src/common.py` is
+shared by all scripts below.
 
 ```python
 """Shared helpers for the COMP3353 Assignment 1 scripts."""
@@ -78,11 +75,7 @@ def count_overlapping(seq, motif):
     return count
 ```
 
----
-
-## Question 1: Counting DNA nucleotides
-
-### Source code (`src/q1_count_nucleotides.py`)
+## 1. Counting DNA nucleotides
 
 ```python
 """Q1: Count occurrences of A, C, G, T (case-insensitive) in a FASTA file.
@@ -116,16 +109,11 @@ if __name__ == "__main__":
     print(a, c, g, t)
 ```
 
-### Output
+Answer:
+- `data/Q1/input1.fa`: A=13 C=13 G=17 T=17
+- `data/Q1/chr22.fa`: A=10382214 C=9160652 G=9246186 T=10370725
 
-- On `data/Q1/input1.fa`: `13 13 17 17`  (A=13, C=13, G=17, T=17)
-- On `data/Q1/chr22.fa`: `10382214 9160652 9246186 10370725`  (A=10382214, C=9160652, G=9246186, T=10370725)
-
----
-
-## Question 2: Finding a motif in DNA
-
-### Source code (`src/q2_find_motif.py`)
+## 2. Finding a motif in DNA
 
 ```python
 """Q2: Count occurrences of a motif s as a substring of a target DNA sequence.
@@ -158,39 +146,16 @@ if __name__ == "__main__":
     print(count_motif_in_file(path, motif))
 ```
 
-Occurrences are counted **overlapping** (a sliding search that resumes one
-position after each match start, so e.g. `AAA` in `AAAA` counts as 2), on the
-forward strand only, matched case-insensitively.
+Answer:
+- `{path: "data/Q1/input1.fa", s: "CGTAACC"}`: 4
+- `{path: "data/Q1/chr22.fa", s: "CGTAACC"}`: 206
 
-### Output
+## 3. Consensus and profile matrix
 
-- `{path: "data/Q1/input1.fa", s: "CGTAACC"}`: **4**
-- `{path: "data/Q1/chr22.fa", s: "CGTAACC"}`: **206**
-
----
-
-## Question 3: Consensus and profile matrix
-
-### Variability metric
-
-We measure variability at each alignment column using **Shannon entropy**
-over the observed base frequencies:
-
-H(i) = − Σ_b p_b · log2(p_b),  for b in {A, C, G, T}
-
-where p_b is the fraction of the 25 aligned sequences carrying base b at
-column i. We use entropy rather than a simpler count such as "number of
-sequences differing from the majority base" because entropy captures the
-*whole shape* of the column's distribution, not just the size of the
-majority: a column split roughly 13/12 between two bases is intuitively far
-more variable than one split 24/1, and entropy correctly rates the former as
-close to its 2-bit maximum while a naive majority-mismatch count would not
-distinguish them as sharply. Entropy is also the natural building block of
-the mutual-information metric used in Question 4 (for two columns,
-I(i,j) = H(i) + H(j) − H(i,j)), so using the same information-theoretic
-quantity keeps the two questions' notions of "variability" consistent.
-
-### Source code (`src/q3_consensus_profile.py`)
+Metric: Shannon entropy per column, H = -sum p_b log2(p_b) over A/C/G/T.
+Used instead of a plain majority-mismatch count because it reflects the full
+split of the column (13/12 is more variable than 24/1, entropy separates
+these, a mismatch count does not). Same quantity used for MI in Q4.
 
 ```python
 """Q3: Consensus string and profile matrix for aligned equal-length DNA sequences.
@@ -276,32 +241,17 @@ if __name__ == "__main__":
     print("Their entropies (bits):", [round(entropies[i - 1], 4) for i in top3])
 ```
 
-### Output (on `data/Q3/BRCA_aligned.fa`, 25 sequences × 335 columns)
-
-**Consensus string:**
+Answer (`data/Q3/BRCA_aligned.fa`, 25 seqs x 335 cols):
+- Consensus:
 ```
 GATGGGTTGTGTTTGGTTTCTTTCAGCATGATTTTGAAGTCAGAGGAGATGTGGTCAATGGAAGAAACCACCAAGGTCCAAAGCGAGCAAGAGAATCCCAGGACAGAAAGGTAAAGCTCCCTCCCTCAAGTTGACAAAAATCTCACCCCACCACTCTGTATTCCACTCCCCTTTGCAGAGATGGGCCGCTTCATTTTGTAAGACTTATTACATACATACACAGTGCTAGATACTTTCACACAGGTTCTTTTTTCACTCTTCCATCCCAACCACATAAATAAGTATTGTCTCTACTTTATGAATGATAAAACTAAGAGATTTAGAGAGGCTGTGTA
 ```
+- Top 3 least-conserved positions (1-based): 26, 158, 144 (entropy 1.164, 1.164, 1.0211 bits)
 
-**3 least-conserved (highest-entropy) 1-based positions:** 26, 158, 144
-(entropies 1.164, 1.164, 1.0211 bits respectively — positions 26 and 158 tie
-exactly and are both reported; ties are broken by lower column index first).
-The full per-base profile matrix (counts of A/C/G/T at every column) is
-computed by the script and available in `results/q3_output.txt`.
+## 4. MSA and covariation matrices
 
----
-
-## Question 4: Multiple sequence alignment and covariation matrices
-
-Alphabet: the 20 standard amino acids plus `-` for gaps; any non-standard
-character is folded into the gap category, per the assignment's instructions.
-Consensus at each column is simply the most frequent of these 21 symbols
-(so a column can have `-` as its consensus if most sequences carry a gap
-there). Mutual information is computed exactly as defined in the assignment,
-skipping (a,b) terms with zero joint frequency (by the usual convention that
-0·log2(0/x) = 0).
-
-### Source code (`src/q4_covariation.py`)
+Alphabet: 20 amino acids + gap `-`; anything else treated as gap. MI formula
+as given, zero-frequency terms skipped.
 
 ```python
 """Q4: Consensus string and top-10 co-varying column pairs (mutual information)
@@ -422,38 +372,27 @@ if __name__ == "__main__":
         print(f"  columns ({i + 1}, {j + 1}): MI = {mi:.4f} bits")
 ```
 
-### Output (on `data/Q4/DHFR_aligned.fa`, 667 sequences × 160 columns)
-
-**Consensus string:**
+Answer (`data/Q4/DHFR_aligned.fa`, 667 seqs x 160 cols):
+- Consensus:
 ```
 MISLIVAMAENGVIGKDNDLPWHLPEDLKYFKRLTLGKPVIMGRKTWESIGRPLPGRRNIVLSRDPDYQAEGVEVVHSLEEALALAG-VEEVFVIGGAEIYAQALP-ADRLYLTEIDAEFEGDTFFPEIDPDEWEEVSREEHPADEKNGYDYTFVTYERK
 ```
+- Top 10 co-varying column pairs (1-based) by MI:
 
-**Top 10 co-varying column pairs (1-based positions), by mutual information:**
-
-| Rank | Columns (i, j) | MI (bits) |
+| Rank | Columns | MI (bits) |
 |---|---|---|
-| 1 | (149, 150) | 1.2409 |
-| 2 | (150, 151) | 1.1677 |
-| 3 | (68, 70)   | 1.1111 |
-| 4 | (148, 150) | 1.0829 |
-| 5 | (145, 146) | 1.0511 |
-| 6 | (13, 122)  | 1.0165 |
-| 7 | (149, 151) | 1.0131 |
-| 8 | (6, 8)     | 1.0072 |
-| 9 | (151, 152) | 0.9992 |
-| 10 | (58, 74)  | 0.9862 |
+| 1 | (149,150) | 1.2409 |
+| 2 | (150,151) | 1.1677 |
+| 3 | (68,70) | 1.1111 |
+| 4 | (148,150) | 1.0829 |
+| 5 | (145,146) | 1.0511 |
+| 6 | (13,122) | 1.0165 |
+| 7 | (149,151) | 1.0131 |
+| 8 | (6,8) | 1.0072 |
+| 9 | (151,152) | 0.9992 |
+| 10 | (58,74) | 0.9862 |
 
-Note several of the top pairs are adjacent/near-adjacent columns (e.g.
-148–151), which is expected since neighbouring columns in a real protein
-alignment often co-vary due to local structural constraints (e.g. a shared
-loop or indel boundary) in addition to any long-range structural contacts.
-
----
-
-## Question 5: A restriction-nuclease case study (chr22)
-
-### Source code (`src/q5_ecorv.py`)
+## 5. Restriction-nuclease case study (chr22)
 
 ```python
 """Q5: EcoRV restriction-site case study on chr22.
@@ -580,84 +519,34 @@ if __name__ == "__main__":
     print("Histogram saved to:", hist_path)
 ```
 
-### (a) Exact EcoRV sites
+a. Exact `GATATC` sites: **5024**
 
-Count of exact, case-insensitive `GATATC` matches in `data/Q1/chr22.fa`:
-**5024**
+b. Reverse complement of `GATATC` is `GATATC` (palindrome). One strand is
+enough because the site is identical on both strands at every occurrence
+(DNA strands are antiparallel and complementary, so a palindromic motif on
+the top strand implies the same sequence on the bottom strand at the same
+location). Scanning the reverse strand would just re-find the same
+positions, not new ones.
 
-### (b) Reverse complement and why one strand suffices
+c. Relaxed sites `GA[ACGT]ATC` (mismatch at position 3):
+- Check string `TTGATATCAAGAGATCCTTCCGAAATCACGT`: 1 exact + 2 relaxed = 3 total. Matches.
+- chr22: 31370 total matches = 5024 exact + 26346 relaxed-only.
 
-The reverse complement of `GATATC` is **`GATATC`** itself (verified by the
-script) — the site is palindromic.
+d. Cutting at every exact site (`GAT/ATC`), N's excluded from lengths:
+- Fragments: 5025
+- Median length: 3561 bp
+- Histogram: `results/q5d_fragment_length_hist.png`
 
-Because DNA strands are antiparallel, the recognition site's presence at a
-given location is a property of the *base pair*, not of a single strand: if
-the top strand reads `GATATC` (5'→3') at some position, the bottom strand,
-read in its own 5'→3' direction at that same physical location, reads the
-reverse complement of `GATATC` — which, since the site is palindromic, is
-again `GATATC`. So a palindromic site is automatically identical on both
-strands at every occurrence; scanning the reverse-complement strand would
-only ever rediscover the exact same genomic locations already found on the
-forward strand (mirrored), never reveal a new cutting site. Hence counting
-matches on the forward strand alone already accounts for every place the
-double-stranded site (and therefore the enzyme's cut) occurs; counting both
-strands would double-count identical sites rather than find additional ones.
+![fragment length distribution](results/q5d_fragment_length_hist.png)
 
-### (c) Star-activity relaxed sites
+## 6. ORF finder (E. coli genome)
 
-Pattern used: `GA[ACGT]ATC` (mismatch tolerated only at position 3, restricted
-to the four standard bases, case-insensitive), counted with the same
-overlapping search as parts (a)/(b).
-
-- Check string `TTGATATCAAGAGATCCTTCCGAAATCACGT`: 1 exact + 2 relaxed-only = 3
-  total matches — matches the assignment's worked example exactly.
-- On `data/Q1/chr22.fa`: **31370** total `GA[N]ATC` matches, of which
-  **5024** are the exact site (X = T, matching part (a)) and **26346** are
-  relaxed-only sites (X ≠ T) that only the star-activity mutant would cut.
-
-### (d) Fragment lengths after digestion
-
-Cutting chr22 at every exact `GATATC` match (blunt cut after the 3rd base,
-i.e. `GAT/ATC`) and excluding all `N` characters when measuring each
-fragment's length:
-
-- **Number of fragments:** 5025
-- **Median fragment length (N's excluded):** 3561 bp
-
-**Fragment length distribution** (log–log histogram, `results/q5d_fragment_length_hist.png`):
-
-![EcoRV fragment length distribution](results/q5d_fragment_length_hist.png)
-
-The distribution is unimodal on a log scale, peaking around 1 kb and
-right-skewed with a long tail out past 10^5 bp, consistent with a Poisson-like
-process of randomly spaced 6-bp cut sites across a large chromosome.
-
----
-
-## Question 6: Open reading frame (ORF) finder
-
-### ORF definition and coordinate convention used
-
-Within each of the 3 reading frames per strand, we scan codon by codon:
-every `ATG` opens a candidate ORF; a run of codons between two in-frame stop
-codons (or between a stop codon and the end of the frame) may contain several
-`ATG`s, and each of them starts its own ORF that all close at the *same* next
-in-frame stop codon (a stop always terminates every currently open ORF in
-that frame). An `ATG` with no downstream in-frame stop codon before the end
-of the genome is an incomplete ORF and is excluded, since it has no defined
-end position or terminated protein.
-
-All positions are reported in the **original genome's 1-based forward-strand
-numbering**, regardless of which strand the ORF is actually on. For a
-`+`-strand ORF, start < end. For a `-`-strand ORF, start > end: "start" is
-the genomic position of the first base of the `ATG` as read 5'→3' on the
-minus strand (the *higher* forward-strand coordinate), and "end" is the last
-base of the stop codon (the *lower* forward-strand coordinate) — this keeps
-"start"/"end" meaning "where translation begins/ends" on each ORF's own
-strand, while all coordinates stay expressed in one consistent numbering
-system.
-
-### Source code (`src/q6_orf_finder.py`)
+ORF = ATG to next in-frame stop codon in the same frame; every ATG before a
+stop gets its own ORF ending at that stop; ATGs with no downstream in-frame
+stop are dropped (incomplete). Coordinates are always in original genome
+1-based forward numbering; for `-` strand ORFs, start = 5' base of ATG on
+minus strand (higher coordinate), end = last base of stop codon (lower
+coordinate).
 
 ```python
 """Q6: ORF finder for the E. coli genome.
@@ -796,76 +685,24 @@ if __name__ == "__main__":
     print(longest["protein"])
 ```
 
-Check: translating `ATGGCCATGGCGCCCAGAACTGGGCCCTGA` with our codon table gives
-`MAMAPRTGP` (stop codon excluded), matching the assignment's worked example.
+Check: translating `ATGGCCATGGCGCCCAGAACTGGGCCCTGA` gives `MAMAPRTGP`. Matches.
 
-### (a) Forward-strand ORFs
+a. Forward-strand ORFs >100 aa: written to `results/q6_orfs.csv`
+   (columns: strand,id,start,end,protein), submitted as a separate file.
 
-All forward-strand ORFs longer than 100 amino acids are written to
-`results/q6_orfs.csv` (columns: `strand,id,start,end,protein`), submitted as
-a separate CSV file alongside this document, per the assignment's
-instructions.
+b. Reverse-strand ORFs (same length filter) appended to the same CSV,
+   labeled `-`. Combined total (both strands, all lengths): 153321 ORFs;
+   30894 have protein length > 100 aa (in the CSV).
 
-### (b) Reverse-strand ORFs
-
-Reverse-strand ORFs are found by running the same frame-scanning routine on
-the reverse complement of the genome, then mapping coordinates back to the
-original forward-strand numbering (see convention above) and labelling them
-`-`. These rows are appended into the *same* `results/q6_orfs.csv` file
-(the script builds both strands' ORFs before writing the CSV once).
-
-Combined total across both strands: **153321** complete ORFs found (all
-lengths); **30894** of these translate to proteins longer than 100 amino
-acids and appear in `results/q6_orfs.csv`.
-
-### (c) The single longest ORF
-
-The longest ORF across both strands is on the **forward (`+`) strand**,
-genome position **2044911–2052014** (1-based), with:
-
-- Protein length: **2367 amino acids**
-- Full ORF length (including the stop codon): **7104 nt**
-
-Its translated protein sequence is:
-
+c. Longest ORF: `+` strand, genome 2044911-2052014, protein length 2367 aa,
+   ORF length 7104 nt (incl. stop). Protein:
 ```
 MLARSGKVSMATKKRSGEEINDRQILCGMGIKLRRLTAGICLITQLAFPMAAAAQGVVNAATQQPVPAQIAIANANTVPYTLGALESAQSVAERFGISVAELRKLNQFRTFARGFDNVRQGDELDVPAQVSEKKLTPPPGNSSDNLEQQIASTSQQIGSLLAEDMNSEQAANMARGWASSQASGAMTDWLSRFGTARITLGVDEDFSLKNSQFDFLHPWYETPDNLFFSQHTLHRTDERTQINNGLGWRHFTPTWMSGINFFFDHDLSRYHSRAGIGAEYWRDYLKLSSNGYLRLTNWRSAPELDNDYEARPANGWDVRAESWLPAWPHLGGKLVYEQYYGDEVALFDKDDRQSNPHAITAGLNYTPFPLMTFSAEQRQGKQGENDTRFAVDFTWQPGSAMQKQLDPNEVAARRSLAGSRYDLVDRNNNIVLEYRKKELVRLTLTDPVTGKSGEVKSLVSSLQTKYALKGYNVEATALEAAGGKVVTTGKDILVTLPAYRFTSTPETDNTWPIEVTAEDVKGNLSNREQSMVVVQAPTLSQKDSSVSLSTQTLNADSHSTATLTFIAHDAAGNPVVGLVLSTRHEGVQDITLSDWKDNGDGSYTQILTTGAMSGTLTLMPQLNGVDAAKAPAVVNIISVSSSRTHSSIKIDKDRYLSGNPIEVTVELRDENDKPVKEQKQQLNNAVSIDNVKPGVTTDWKETADGVYKATYTAYTKGSGLTAKLLMQNWNEDLHTAGFIIDANPQSAKIATLSASNNGVLANENAANTVSVNVADEGSNPINDHTVTFAVLSGSATSFNNQNTAKTDVNGLATFDLKSSKQEDNTVEVTLENGVKQTLIVSFVGDSSTAQVDLQKSKNEVVADGNDSVTMTATVRDAKGNLLNDVMVTFNVNSAEAKLSQTEVNSHDGIATATLTSLKNGDYRVTASVSSGSQANQQVNFIGDQSTAALTLSVPSGDITVTNTAPQYMTATLQDKNGNPLKDKEITFSVPNDVASKFSISNGGKGMTDSNGVAIASLTGTLAGTHMIMARLANSNVSDAQPMTFVADKDRAVVVLQTSKAEIIGNGVDETTLTATVKDPSNHPVAGITVNFTMPQDVAANFTLENNGIAITQANGEAHVTLKGKKAGTHTVTATLGNNNTSDSQPVTFVADKASAQVVLQISKDEITGNGVDSATLTATVKDQFDNEVNNLPVTFSSASSGLTLTPGVSNTNESGIAQATLAGVAFGEKTVTASLANNGASDNKTVHFIGDTAAAKIIELAPVPDSIIAGTPQNSSGSVITATVVDNNGFPVKGVTVNFTSNAATAEMTNGGQAVTNEQGKATVTYTNTRSSIESGARPDTVEASLENGSSTLSTSINVNADASTAHLTLLQALFDTVSAGETTSLYIEVKDNYGNGVPQQEVTLSVSPSEGVTPSNNAIYTTNHDGNFYASFTATKAGVYQLTATLENGDSMQQTVTYVPNVANAEITLAASKDPVIADNNDLTTLTATVADTEGNAIANTEVTFTLPEDVKANFTLSDGGKVITDAEGKAKVTLKGTKAGAHTVTASMTGGKSEQLVVNFIADTLTAQVNLNVTEDNFIANNVGMTRLQATVTDGNGNPLANEAVTFTLPADVSASFTLGQGGSAITDINGKAEVTLSGTKSGTYPVTVSVNNYGVSDTKQVTLIADAGTAKLASLTSVYSFVVSTTEGATMTASVTDANGNPVEGIKVNFRGTSVTLSSTSVETDDRGFAEILVTSTEVGLKTVSASLADKPTEVISRLLNASADVNSATITSLEIPEGQVMVAQDVAVKAHVNDQFGNPVAHQPVTFSAEPSSQMIISQNTVSTNTQGVAEVTMTPERNGSYMVKASLPNGASLEKQLEAIDEKLTLTASSPLIGVYAPTGATLTATLTSANGTPVEGQVINFSVTPEGATLSGGKVRTNSSGQAPVVLTSNKVGTYTVTASFHNGVTIQTQTTVKVTGNSSTAHVASFIADPSTIAATNTDLSTLKATVEDGSGNLIEGLTVYFALKSGSATLTSLTAVTDQNGIATTSVKGAMTGSVTVSAVTTAGGMQTVDITLVAGPADTSQSVLKSNRSSLKGDYTDSAELRLVLHDISGNPIKVSEGMEFVQSGTNVPYIKISAIDYSLNINGDYKATVTGGGEGIATLIPVLNGVHQAGLSTTIQFTRAEDKIMSGTVSVNGTDLPTTTFPSQGFTGAYYQLNNDNFAPGKTAADYEFSSSASWVDVDATGKVTFKNVGSNSERITATPKSGGPSYVYEIRVKSWWVNAGEAFMIYSLAENFCSSNGYTLPRANYLNHCSSRGIGSLYSEWGDMGHYTTDAGFQSNMYWSSSPANSSEQYVVSLATGDQSVFEKLGFAYATCYKNL
 ```
 
-**Protein identification:** This ORF corresponds to ***yeeJ*** (an inverse
-autotransporter adhesin). Several independent lines of evidence support this:
-
-1. *Length and genome position*: `yeeJ` is a well-known outlier in the
-   E. coli K-12 MG1655 genome for being unusually long; published work on
-   MG1655 reports the YeeJ protein at 2358 amino acids (our translation:
-   2367 aa — the small difference is consistent with normal
-   strain/annotation-version variation in exact start-codon usage, not a
-   different gene).
-2. *Domain architecture*: the translated sequence is dominated by dozens of
-   short, highly repetitive ~90–100 residue blocks (e.g. repeated
-   `...TVTASL...NG...` / `...VTFTLP...` motifs), matching the literature
-   description of YeeJ's passenger domain as containing **13 bacterial
-   immunoglobulin-like ("Big") domain repeats**, followed by a distinct
-   C-terminal region — consistent with the last part of our sequence
-   (`...LGFAYATCYKNL`) corresponding to YeeJ's C-type lectin domain.
-3. *Function*: YeeJ is described as an inverse autotransporter that binds
-   peptidoglycan and promotes biofilm formation in *E. coli* (Meuskens et
-   al., *Scientific Reports* 2017, https://www.nature.com/articles/s41598-017-10902-0).
-
----
-
-## Notes on data and reproducibility
-
-All five input files (`data/Q1/input1.fa`, `data/Q1/chr22.fa`,
-`data/Q3/BRCA_aligned.fa`, `data/Q4/DHFR_aligned.fa`,
-`data/Q6/ecoli_genome.fa`) and every script (`src/*.py`) referenced above are
-included in this submission and can be re-run directly, e.g.:
-
-```bash
-python src/q1_count_nucleotides.py data/Q1/chr22.fa
-python src/q2_find_motif.py data/Q1/chr22.fa CGTAACC
-python src/q3_consensus_profile.py data/Q3/BRCA_aligned.fa
-python src/q4_covariation.py data/Q4/DHFR_aligned.fa
-python src/q5_ecorv.py data/Q1/chr22.fa --outdir results
-python src/q6_orf_finder.py data/Q6/ecoli_genome.fa --outdir results
-```
+Identity: `yeeJ`, an inverse autotransporter adhesin. MG1655 YeeJ is reported
+at 2358 aa (vs. our 2367 aa — minor version/strain difference, same gene).
+The translated sequence shows the same repeat pattern as YeeJ's ~13
+bacterial Ig-like (Big) domain repeats, and its function (peptidoglycan
+binding, biofilm formation) is described in Meuskens et al., Sci Rep 2017
+(https://www.nature.com/articles/s41598-017-10902-0).
