@@ -1,0 +1,15 @@
+Number of sequences: 667
+Alignment length: 160
+Consensus string:
+MISLIVAMAENGVIGKDNDLPWHLPEDLKYFKRLTLGKPVIMGRKTWESIGRPLPGRRNIVLSRDPDYQAEGVEVVHSLEEALALAG-VEEVFVIGGAEIYAQALP-ADRLYLTEIDAEFEGDTFFPEIDPDEWEEVSREEHPADEKNGYDYTFVTYERK
+Top 10 co-varying column pairs (1-based positions), by mutual information:
+  columns (149, 150): MI = 1.2409 bits
+  columns (150, 151): MI = 1.1677 bits
+  columns (68, 70): MI = 1.1111 bits
+  columns (148, 150): MI = 1.0829 bits
+  columns (145, 146): MI = 1.0511 bits
+  columns (13, 122): MI = 1.0165 bits
+  columns (149, 151): MI = 1.0131 bits
+  columns (6, 8): MI = 1.0072 bits
+  columns (151, 152): MI = 0.9992 bits
+  columns (58, 74): MI = 0.9862 bits

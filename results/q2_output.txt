@@ -1,0 +1,4 @@
+=== Q2 on input1.fa, s=CGTAACC ===
+4
+=== Q2 on chr22.fa, s=CGTAACC ===
+206
