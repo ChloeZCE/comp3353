@@ -1,4 +1,3 @@
-"""Q1: Count occurrences of A, C, G, T (case-insensitive) in a FASTA file."""
 from collections import Counter
 
 
