@@ -72,13 +72,17 @@ Output on `{path: "data/Q1/chr22.fa", s: "CGTAACC"}`: 206
 Input: a FASTA file of equal-length aligned DNA sequences. Output: the consensus
 string, and the 3 positions (1-based) where the sequences vary the most.
 
-Metric used: Shannon entropy of the A/C/G/T frequencies at each column. A column
-split evenly between bases has high entropy (more variable); a column dominated
-by one base has entropy near 0 (conserved).
+Metric used: mismatches to the consensus base, i.e. for each column,
+`N − (count of the most common base)`. A column where every sequence agrees
+scores 0; a column split across several bases scores higher. Ties (columns
+with the same mismatch count) are broken by sum-of-pairs mismatches — for
+every pair of sequences in the column, count how many pairs disagree. This
+matters when two columns have the same total mismatch count but a different
+shape: e.g. one column split 17/8 between two bases and another split
+17/6/2 across three bases both count as "8 mismatches", but the second one
+has more disagreeing pairs (148 vs 136), so it's ranked as more variable.
 
 ```python
-from math import log2
-
 BASES = "ACGT"
 
 
@@ -99,6 +103,7 @@ def read_fasta(path):
 
 
 seqs = read_fasta("data/Q3/BRCA_aligned.fa")
+n = len(seqs)
 length = len(seqs[0])
 
 # profile matrix: count of each base at each column
@@ -108,30 +113,39 @@ for seq in seqs:
         if ch in BASES:
             profile[ch][i] += 1
 
-# consensus + entropy per column (entropy = variability metric)
+# consensus + variability per column
+# variability = mismatches to consensus (N - majority count), tiebroken by
+# sum-of-pairs mismatches (how many of the 25*24/2 sequence pairs disagree
+# at that column) -- this separates a clean two-way split (e.g. 17/8) from
+# a messier three-way split (e.g. 17/6/2) that has the same mismatch count
 consensus = ""
-entropy = []
+mismatches = []
+pair_mismatches = []
 for i in range(length):
     counts = [profile[b][i] for b in BASES]
     total = sum(counts)
     consensus += BASES[counts.index(max(counts))]
-    h = -sum((c / total) * log2(c / total) for c in counts if c > 0)
-    entropy.append(h)
+    mismatches.append(total - max(counts))
 
-top3 = sorted(range(length), key=lambda i: -entropy[i])[:3]
+    nonzero = [c for c in counts if c > 0]
+    sp = sum(nonzero[a] * nonzero[b] for a in range(len(nonzero)) for b in range(a + 1, len(nonzero)))
+    pair_mismatches.append(sp)
+
+top3 = sorted(range(length), key=lambda i: (-mismatches[i], -pair_mismatches[i]))[:3]
 top3_positions = [i + 1 for i in top3]  # 1-based
 
 print("Consensus string:")
 print(consensus)
 print("Top 3 least-conserved positions (1-based):", top3_positions)
-print("Entropy at those positions:", [round(entropy[i], 4) for i in top3])
+print("Mismatches to consensus at those positions:", [mismatches[i] for i in top3])
+print("Sum-of-pairs mismatches at those positions:", [pair_mismatches[i] for i in top3])
 ```
 
 Output on `data/Q3/BRCA_aligned.fa`:
 ```
 GATGGGTTGTGTTTGGTTTCTTTCAGCATGATTTTGAAGTCAGAGGAGATGTGGTCAATGGAAGAAACCACCAAGGTCCAAAGCGAGCAAGAGAATCCCAGGACAGAAAGGTAAAGCTCCCTCCCTCAAGTTGACAAAAATCTCACCCCACCACTCTGTATTCCACTCCCCTTTGCAGAGATGGGCCGCTTCATTTTGTAAGACTTATTACATACATACACAGTGCTAGATACTTTCACACAGGTTCTTTTTTCACTCTTCCATCCCAACCACATAAATAAGTATTGTCTCTACTTTATGAATGATAAAACTAAGAGATTTAGAGAGGCTGTGTA
 ```
-Top 3 least-conserved positions (1-based): 26, 158, 144
+Top 3 least-conserved positions (1-based): 26, 158, 4 (all 8 mismatches; sum-of-pairs 148, 148, 136)
 
 ## Question 4: Multiple sequence alignment and covariation matrices
 
