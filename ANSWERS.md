@@ -1,7 +1,9 @@
 # COMP3353 Bioinformatics — Assignment 1: Sequence Analysis
 
 Name: Zheng Choi I
+
 University Number: 3035987788
+
 Email: u3598778@connect.hku.hk
 
 ## Question 1: Counting DNA nucleotides
