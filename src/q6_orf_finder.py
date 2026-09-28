@@ -1,8 +1,5 @@
 """Q6: ORF finder for the E. coli genome.
 
-Usage:
-    python src/q6_orf_finder.py <genome_fasta_path> [--outdir results]
-
 Writes results/q6_orfs.csv with columns: strand,id,start,end,protein
 (only ORFs whose translated protein is longer than 100 amino acids, on both
 strands), and prints the single longest ORF across both strands.
@@ -28,11 +25,12 @@ forward-strand coordinate), and "end" is the last base of the stop codon
 import sys
 import os
 import csv
-import argparse
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 from common import read_fasta_records, reverse_complement, translate_codon, STOP_CODONS
 
+FASTA_PATH = "data/Q6/ecoli_genome.fa"
+OUT_CSV = "results/q6_orfs.csv"
 MIN_PROTEIN_LEN = 100
 
 
@@ -102,12 +100,7 @@ def write_csv(rows, path):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("fasta_path")
-    parser.add_argument("--outdir", default="results")
-    args = parser.parse_args()
-
-    records = list(read_fasta_records(args.fasta_path))
+    records = list(read_fasta_records(FASTA_PATH))
     header, genome_seq = records[0]
     genome_seq = genome_seq.upper()
     print("Genome:", header, "length:", len(genome_seq))
@@ -119,9 +112,8 @@ if __name__ == "__main__":
     long_rows.sort(key=lambda r: (0 if r["strand"] == "+" else 1, r["start"]))
     print(f"ORFs with protein length > {MIN_PROTEIN_LEN} aa:", len(long_rows))
 
-    out_csv = os.path.join(args.outdir, "q6_orfs.csv")
-    write_csv(long_rows, out_csv)
-    print("Wrote:", out_csv)
+    write_csv(long_rows, OUT_CSV)
+    print("Wrote:", OUT_CSV)
 
     longest = max(all_rows, key=lambda r: len(r["protein"]))
     print("\n=== (c) Longest ORF across both strands ===")

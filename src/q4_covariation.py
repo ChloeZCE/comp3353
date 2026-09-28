@@ -1,9 +1,6 @@
 """Q4: Consensus string and top-10 co-varying column pairs (mutual information)
 for a protein multiple sequence alignment.
 
-Usage:
-    python src/q4_covariation.py <fasta_path>
-
 Alphabet: the 20 standard amino acids plus '-' for gaps (21 symbols). Any
 character outside the 20 standard amino acids (including '-') is treated as a
 gap, per the assignment's instructions.
@@ -98,9 +95,7 @@ def mutual_information_all_pairs(codes, n, length):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        sys.exit("Usage: python q4_covariation.py <fasta_path>")
-    seqs, length = load_alignment(sys.argv[1])
+    seqs, length = load_alignment("data/Q4/DHFR_aligned.fa")
     n = len(seqs)
     codes = encode(seqs, length)
 

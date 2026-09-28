@@ -1,8 +1,5 @@
 """Q3: Consensus string and profile matrix for aligned equal-length DNA sequences.
 
-Usage:
-    python src/q3_consensus_profile.py <fasta_path>
-
 Variability metric: per-column Shannon entropy (bits) over the observed A/C/G/T
 frequencies, H(i) = -sum_b p_b * log2(p_b). Entropy is used (rather than, say,
 1 - max frequency) because it accounts for the *whole* distribution at a
@@ -64,9 +61,7 @@ def top_variable_positions(entropies, n=3):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        sys.exit("Usage: python q3_consensus_profile.py <fasta_path>")
-    seqs, length = load_alignment(sys.argv[1])
+    seqs, length = load_alignment("data/Q3/BRCA_aligned.fa")
     profile = profile_matrix(seqs, length)
     consensus, entropies = consensus_and_entropy(profile, length)
     top3 = top_variable_positions(entropies, 3)

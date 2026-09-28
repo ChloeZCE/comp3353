@@ -1,16 +1,15 @@
 """Q5: EcoRV restriction-site case study on chr22.
 
-Usage:
-    python src/q5_ecorv.py <chr22_fasta_path> [--outdir results]
-
 Runs all four sub-questions (a-d) and writes a fragment-length histogram to
-<outdir>/q5d_fragment_length_hist.png.
+results/q5d_fragment_length_hist.png.
 """
 import sys
 import os
 import re
-import argparse
 import statistics
+
+FASTA_PATH = "data/Q1/chr22.fa"
+OUTDIR = "results"
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 from common import read_fasta_records, reverse_complement, count_overlapping
@@ -93,12 +92,7 @@ def part_d_fragments(seq, outdir):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("fasta_path")
-    parser.add_argument("--outdir", default="results")
-    args = parser.parse_args()
-
-    seq = load_single_sequence(args.fasta_path)
+    seq = load_single_sequence(FASTA_PATH)
 
     print("=== (a) Exact EcoRV sites (GATATC) ===")
     n_exact = part_a_exact_sites(seq)
@@ -116,7 +110,7 @@ if __name__ == "__main__":
     print("Of which relaxed-only (X != T):", relaxed_only)
 
     print("\n=== (d) Fragment lengths after cutting at every exact site ===")
-    n_fragments, median_length, hist_path, _ = part_d_fragments(seq, args.outdir)
+    n_fragments, median_length, hist_path, _ = part_d_fragments(seq, OUTDIR)
     print("Number of fragments:", n_fragments)
     print("Median fragment length (N's excluded):", median_length)
     print("Histogram saved to:", hist_path)

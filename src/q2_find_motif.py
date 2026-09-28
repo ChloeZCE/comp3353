@@ -1,8 +1,5 @@
 """Q2: Count occurrences of a motif s as a substring of a target DNA sequence.
 
-Usage:
-    python src/q2_find_motif.py <fasta_path> <motif>
-
 Counts overlapping, case-insensitive matches on the forward strand only.
 Each FASTA record is searched independently (matches are not allowed to span
 across two different records), and counts are summed across all records.
@@ -22,7 +19,5 @@ def count_motif_in_file(path, motif):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        sys.exit("Usage: python q2_find_motif.py <fasta_path> <motif>")
-    path, motif = sys.argv[1], sys.argv[2]
-    print(count_motif_in_file(path, motif))
+    print(count_motif_in_file("data/Q1/input1.fa", "CGTAACC"))
+    print(count_motif_in_file("data/Q1/chr22.fa", "CGTAACC"))

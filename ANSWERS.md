@@ -78,15 +78,7 @@ def count_overlapping(seq, motif):
 ## 1. Counting DNA nucleotides
 
 ```python
-"""Q1: Count occurrences of A, C, G, T (case-insensitive) in a FASTA file.
-
-Usage:
-    python src/q1_count_nucleotides.py <fasta_path>
-
-Reads the file line by line (no full-file load) so it scales to chromosome-sized
-FASTA files such as data/Q1/chr22.fa.
-"""
-import sys
+"""Q1: Count occurrences of A, C, G, T (case-insensitive) in a FASTA file."""
 from collections import Counter
 
 
@@ -103,10 +95,8 @@ def count_nucleotides(path):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        sys.exit("Usage: python q1_count_nucleotides.py <fasta_path>")
-    a, c, g, t = count_nucleotides(sys.argv[1])
-    print(a, c, g, t)
+    print(count_nucleotides("data/Q1/input1.fa"))
+    print(count_nucleotides("data/Q1/chr22.fa"))
 ```
 
 Answer:
@@ -117,9 +107,6 @@ Answer:
 
 ```python
 """Q2: Count occurrences of a motif s as a substring of a target DNA sequence.
-
-Usage:
-    python src/q2_find_motif.py <fasta_path> <motif>
 
 Counts overlapping, case-insensitive matches on the forward strand only.
 Each FASTA record is searched independently (matches are not allowed to span
@@ -140,10 +127,8 @@ def count_motif_in_file(path, motif):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        sys.exit("Usage: python q2_find_motif.py <fasta_path> <motif>")
-    path, motif = sys.argv[1], sys.argv[2]
-    print(count_motif_in_file(path, motif))
+    print(count_motif_in_file("data/Q1/input1.fa", "CGTAACC"))
+    print(count_motif_in_file("data/Q1/chr22.fa", "CGTAACC"))
 ```
 
 Answer:
@@ -159,9 +144,6 @@ these, a mismatch count does not). Same quantity used for MI in Q4.
 
 ```python
 """Q3: Consensus string and profile matrix for aligned equal-length DNA sequences.
-
-Usage:
-    python src/q3_consensus_profile.py <fasta_path>
 
 Variability metric: per-column Shannon entropy (bits) over the observed A/C/G/T
 frequencies, H(i) = -sum_b p_b * log2(p_b). Entropy is used (rather than, say,
@@ -224,9 +206,7 @@ def top_variable_positions(entropies, n=3):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        sys.exit("Usage: python q3_consensus_profile.py <fasta_path>")
-    seqs, length = load_alignment(sys.argv[1])
+    seqs, length = load_alignment("data/Q3/BRCA_aligned.fa")
     profile = profile_matrix(seqs, length)
     consensus, entropies = consensus_and_entropy(profile, length)
     top3 = top_variable_positions(entropies, 3)
@@ -256,9 +236,6 @@ as given, zero-frequency terms skipped.
 ```python
 """Q4: Consensus string and top-10 co-varying column pairs (mutual information)
 for a protein multiple sequence alignment.
-
-Usage:
-    python src/q4_covariation.py <fasta_path>
 
 Alphabet: the 20 standard amino acids plus '-' for gaps (21 symbols). Any
 character outside the 20 standard amino acids (including '-') is treated as a
@@ -354,9 +331,7 @@ def mutual_information_all_pairs(codes, n, length):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        sys.exit("Usage: python q4_covariation.py <fasta_path>")
-    seqs, length = load_alignment(sys.argv[1])
+    seqs, length = load_alignment("data/Q4/DHFR_aligned.fa")
     n = len(seqs)
     codes = encode(seqs, length)
 
@@ -397,17 +372,16 @@ MISLIVAMAENGVIGKDNDLPWHLPEDLKYFKRLTLGKPVIMGRKTWESIGRPLPGRRNIVLSRDPDYQAEGVEVVHSLE
 ```python
 """Q5: EcoRV restriction-site case study on chr22.
 
-Usage:
-    python src/q5_ecorv.py <chr22_fasta_path> [--outdir results]
-
 Runs all four sub-questions (a-d) and writes a fragment-length histogram to
-<outdir>/q5d_fragment_length_hist.png.
+results/q5d_fragment_length_hist.png.
 """
 import sys
 import os
 import re
-import argparse
 import statistics
+
+FASTA_PATH = "data/Q1/chr22.fa"
+OUTDIR = "results"
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 from common import read_fasta_records, reverse_complement, count_overlapping
@@ -490,12 +464,7 @@ def part_d_fragments(seq, outdir):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("fasta_path")
-    parser.add_argument("--outdir", default="results")
-    args = parser.parse_args()
-
-    seq = load_single_sequence(args.fasta_path)
+    seq = load_single_sequence(FASTA_PATH)
 
     print("=== (a) Exact EcoRV sites (GATATC) ===")
     n_exact = part_a_exact_sites(seq)
@@ -513,7 +482,7 @@ if __name__ == "__main__":
     print("Of which relaxed-only (X != T):", relaxed_only)
 
     print("\n=== (d) Fragment lengths after cutting at every exact site ===")
-    n_fragments, median_length, hist_path, _ = part_d_fragments(seq, args.outdir)
+    n_fragments, median_length, hist_path, _ = part_d_fragments(seq, OUTDIR)
     print("Number of fragments:", n_fragments)
     print("Median fragment length (N's excluded):", median_length)
     print("Histogram saved to:", hist_path)
@@ -551,9 +520,6 @@ coordinate).
 ```python
 """Q6: ORF finder for the E. coli genome.
 
-Usage:
-    python src/q6_orf_finder.py <genome_fasta_path> [--outdir results]
-
 Writes results/q6_orfs.csv with columns: strand,id,start,end,protein
 (only ORFs whose translated protein is longer than 100 amino acids, on both
 strands), and prints the single longest ORF across both strands.
@@ -579,11 +545,12 @@ forward-strand coordinate), and "end" is the last base of the stop codon
 import sys
 import os
 import csv
-import argparse
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
 from common import read_fasta_records, reverse_complement, translate_codon, STOP_CODONS
 
+FASTA_PATH = "data/Q6/ecoli_genome.fa"
+OUT_CSV = "results/q6_orfs.csv"
 MIN_PROTEIN_LEN = 100
 
 
@@ -653,12 +620,7 @@ def write_csv(rows, path):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("fasta_path")
-    parser.add_argument("--outdir", default="results")
-    args = parser.parse_args()
-
-    records = list(read_fasta_records(args.fasta_path))
+    records = list(read_fasta_records(FASTA_PATH))
     header, genome_seq = records[0]
     genome_seq = genome_seq.upper()
     print("Genome:", header, "length:", len(genome_seq))
@@ -670,9 +632,8 @@ if __name__ == "__main__":
     long_rows.sort(key=lambda r: (0 if r["strand"] == "+" else 1, r["start"]))
     print(f"ORFs with protein length > {MIN_PROTEIN_LEN} aa:", len(long_rows))
 
-    out_csv = os.path.join(args.outdir, "q6_orfs.csv")
-    write_csv(long_rows, out_csv)
-    print("Wrote:", out_csv)
+    write_csv(long_rows, OUT_CSV)
+    print("Wrote:", OUT_CSV)
 
     longest = max(all_rows, key=lambda r: len(r["protein"]))
     print("\n=== (c) Longest ORF across both strands ===")
