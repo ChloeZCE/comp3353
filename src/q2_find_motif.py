@@ -1,28 +1,21 @@
-"""Q2: Count occurrences of a motif s as a substring of a target DNA sequence.
-
-Usage:
-    python src/q2_find_motif.py <fasta_path> <motif>
-
-Counts overlapping, case-insensitive matches on the forward strand only.
-Each FASTA record is searched independently (matches are not allowed to span
-across two different records), and counts are summed across all records.
-"""
-import sys
-import os
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-from common import read_fasta_records, count_overlapping
+def read_fasta(path):
+    lines = []
+    for line in open(path):
+        if not line.startswith(">"):
+            lines.append(line.strip())
+    return "".join(lines)
 
 
-def count_motif_in_file(path, motif):
-    total = 0
-    for _header, seq in read_fasta_records(path):
-        total += count_overlapping(seq, motif)
-    return total
+def count_motif(seq, motif):
+    seq = seq.upper()
+    motif = motif.upper()
+    count = 0
+    i = seq.find(motif)
+    while i != -1:
+        count += 1
+        i = seq.find(motif, i + 1)  # overlapping matches
+    return count
 
 
-if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        sys.exit("Usage: python q2_find_motif.py <fasta_path> <motif>")
-    path, motif = sys.argv[1], sys.argv[2]
-    print(count_motif_in_file(path, motif))
+print(count_motif(read_fasta("data/Q1/input1.fa"), "CGTAACC"))
+print(count_motif(read_fasta("data/Q1/chr22.fa"), "CGTAACC"))
