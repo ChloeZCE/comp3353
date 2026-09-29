@@ -1,16 +1,5 @@
-=== (a) Exact EcoRV sites (GATATC) ===
-Count: 5024
-
-=== (b) Reverse complement of GATATC ===
-Reverse complement: GATATC
-Palindromic: True
-
-=== (c) Star-activity relaxed sites (GAX/ATC) ===
-Total GA[N]ATC matches (includes exact): 31370
-Of which exact (X=T): 5024
-Of which relaxed-only (X != T): 26346
-
-=== (d) Fragment lengths after cutting at every exact site ===
-Number of fragments: 5025
-Median fragment length (N's excluded): 3561
-Histogram saved to: results/q5d_fragment_length_hist.png
+(a) exact GATATC sites: 5024
+(b) reverse complement of GATATC: GATATC -> palindrome: True
+(c) total GA[N]ATC sites: 31370 (exact: 5024 , relaxed-only: 26346 )
+(d) number of fragments: 5025
+(d) median fragment length: 3561
