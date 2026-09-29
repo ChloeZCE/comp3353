@@ -72,17 +72,19 @@ Output on `{path: "data/Q1/chr22.fa", s: "CGTAACC"}`: 206
 Input: a FASTA file of equal-length aligned DNA sequences. Output: the consensus
 string, and the 3 positions (1-based) where the sequences vary the most.
 
-Metric used: mismatches to the consensus base, i.e. for each column,
-`N − (count of the most common base)`. A column where every sequence agrees
-scores 0; a column split across several bases scores higher. Ties (columns
-with the same mismatch count) are broken by sum-of-pairs mismatches — for
-every pair of sequences in the column, count how many pairs disagree. This
-matters when two columns have the same total mismatch count but a different
-shape: e.g. one column split 17/8 between two bases and another split
-17/6/2 across three bases both count as "8 mismatches", but the second one
-has more disagreeing pairs (148 vs 136), so it's ranked as more variable.
+I used entropy to score each column: for each of A/C/G/T I work out what
+fraction of the 25 sequences have that base, then plug those fractions into
+H = -Σ p·log2(p). If everyone at a column agrees, entropy is 0. If all four
+bases show up equally often, entropy hits its max of 2 bits. I went with
+this instead of just counting how many sequences disagree with the majority
+base, because it also picks up on how that disagreement is spread out — a
+column where the minority is split across two or three different bases
+feels more "confused" to me than one with a single, consistent alternative
+base, even when the number of mismatches is the same.
 
 ```python
+from math import log2
+
 BASES = "ACGT"
 
 
@@ -103,7 +105,6 @@ def read_fasta(path):
 
 
 seqs = read_fasta("data/Q3/BRCA_aligned.fa")
-n = len(seqs)
 length = len(seqs[0])
 
 # profile matrix: count of each base at each column
@@ -113,39 +114,30 @@ for seq in seqs:
         if ch in BASES:
             profile[ch][i] += 1
 
-# consensus + variability per column
-# variability = mismatches to consensus (N - majority count), tiebroken by
-# sum-of-pairs mismatches (how many of the 25*24/2 sequence pairs disagree
-# at that column) -- this separates a clean two-way split (e.g. 17/8) from
-# a messier three-way split (e.g. 17/6/2) that has the same mismatch count
+# consensus + entropy per column (entropy = variability metric)
 consensus = ""
-mismatches = []
-pair_mismatches = []
+entropy = []
 for i in range(length):
     counts = [profile[b][i] for b in BASES]
     total = sum(counts)
     consensus += BASES[counts.index(max(counts))]
-    mismatches.append(total - max(counts))
+    h = -sum((c / total) * log2(c / total) for c in counts if c > 0)
+    entropy.append(h)
 
-    nonzero = [c for c in counts if c > 0]
-    sp = sum(nonzero[a] * nonzero[b] for a in range(len(nonzero)) for b in range(a + 1, len(nonzero)))
-    pair_mismatches.append(sp)
-
-top3 = sorted(range(length), key=lambda i: (-mismatches[i], -pair_mismatches[i]))[:3]
+top3 = sorted(range(length), key=lambda i: -entropy[i])[:3]
 top3_positions = [i + 1 for i in top3]  # 1-based
 
 print("Consensus string:")
 print(consensus)
 print("Top 3 least-conserved positions (1-based):", top3_positions)
-print("Mismatches to consensus at those positions:", [mismatches[i] for i in top3])
-print("Sum-of-pairs mismatches at those positions:", [pair_mismatches[i] for i in top3])
+print("Entropy at those positions:", [round(entropy[i], 4) for i in top3])
 ```
 
 Output on `data/Q3/BRCA_aligned.fa`:
 ```
 GATGGGTTGTGTTTGGTTTCTTTCAGCATGATTTTGAAGTCAGAGGAGATGTGGTCAATGGAAGAAACCACCAAGGTCCAAAGCGAGCAAGAGAATCCCAGGACAGAAAGGTAAAGCTCCCTCCCTCAAGTTGACAAAAATCTCACCCCACCACTCTGTATTCCACTCCCCTTTGCAGAGATGGGCCGCTTCATTTTGTAAGACTTATTACATACATACACAGTGCTAGATACTTTCACACAGGTTCTTTTTTCACTCTTCCATCCCAACCACATAAATAAGTATTGTCTCTACTTTATGAATGATAAAACTAAGAGATTTAGAGAGGCTGTGTA
 ```
-Top 3 least-conserved positions (1-based): 26, 158, 4 (all 8 mismatches; sum-of-pairs 148, 148, 136)
+Top 3 least-conserved positions (1-based): 26, 158, 144
 
 ## Question 4: Multiple sequence alignment and covariation matrices
 
@@ -290,10 +282,13 @@ plt.savefig("results/q5d_fragment_length_hist.png", dpi=150)
 a. How many perfectly matching EcoRV sites are present in chr22?
    **5024**
 
-b. EcoRV's site is a palindrome. Its reverse complement is **GATATC** (same as itself).
-   We only need the forward strand because a palindromic site reads the same on both
-   strands at the same position — the reverse strand never reveals a new site, only
-   the same ones already found on the forward strand.
+b. GATATC's reverse complement is **GATATC** — same sequence, so it's a palindrome.
+   I only need to scan the forward strand because of that: the two DNA strands run
+   opposite ways but pair up base-for-base, so whatever sequence sits on the top
+   strand at a spot is mirrored on the bottom strand at that same spot. Since the
+   site folds back onto itself, every site I find on the forward strand is already
+   the same site on the reverse strand too — scanning the reverse strand again
+   wouldn't turn up anything new, just the same positions from the other side.
 
 c. Mutant EcoRV cuts GAX/ATC (mismatch tolerated at position 3). Check string
    `TTGATATCAAGAGATCCTTCCGAAATCACGT` gives 1 exact + 2 relaxed sites, matching the
@@ -407,8 +402,11 @@ c. Longest ORF: forward strand, genome position 2044911-2052014, 2367 amino acid
 MLARSGKVSMATKKRSGEEINDRQILCGMGIKLRRLTAGICLITQLAFPMAAAAQGVVNAATQQPVPAQIAIANANTVPYTLGALESAQSVAERFGISVAELRKLNQFRTFARGFDNVRQGDELDVPAQVSEKKLTPPPGNSSDNLEQQIASTSQQIGSLLAEDMNSEQAANMARGWASSQASGAMTDWLSRFGTARITLGVDEDFSLKNSQFDFLHPWYETPDNLFFSQHTLHRTDERTQINNGLGWRHFTPTWMSGINFFFDHDLSRYHSRAGIGAEYWRDYLKLSSNGYLRLTNWRSAPELDNDYEARPANGWDVRAESWLPAWPHLGGKLVYEQYYGDEVALFDKDDRQSNPHAITAGLNYTPFPLMTFSAEQRQGKQGENDTRFAVDFTWQPGSAMQKQLDPNEVAARRSLAGSRYDLVDRNNNIVLEYRKKELVRLTLTDPVTGKSGEVKSLVSSLQTKYALKGYNVEATALEAAGGKVVTTGKDILVTLPAYRFTSTPETDNTWPIEVTAEDVKGNLSNREQSMVVVQAPTLSQKDSSVSLSTQTLNADSHSTATLTFIAHDAAGNPVVGLVLSTRHEGVQDITLSDWKDNGDGSYTQILTTGAMSGTLTLMPQLNGVDAAKAPAVVNIISVSSSRTHSSIKIDKDRYLSGNPIEVTVELRDENDKPVKEQKQQLNNAVSIDNVKPGVTTDWKETADGVYKATYTAYTKGSGLTAKLLMQNWNEDLHTAGFIIDANPQSAKIATLSASNNGVLANENAANTVSVNVADEGSNPINDHTVTFAVLSGSATSFNNQNTAKTDVNGLATFDLKSSKQEDNTVEVTLENGVKQTLIVSFVGDSSTAQVDLQKSKNEVVADGNDSVTMTATVRDAKGNLLNDVMVTFNVNSAEAKLSQTEVNSHDGIATATLTSLKNGDYRVTASVSSGSQANQQVNFIGDQSTAALTLSVPSGDITVTNTAPQYMTATLQDKNGNPLKDKEITFSVPNDVASKFSISNGGKGMTDSNGVAIASLTGTLAGTHMIMARLANSNVSDAQPMTFVADKDRAVVVLQTSKAEIIGNGVDETTLTATVKDPSNHPVAGITVNFTMPQDVAANFTLENNGIAITQANGEAHVTLKGKKAGTHTVTATLGNNNTSDSQPVTFVADKASAQVVLQISKDEITGNGVDSATLTATVKDQFDNEVNNLPVTFSSASSGLTLTPGVSNTNESGIAQATLAGVAFGEKTVTASLANNGASDNKTVHFIGDTAAAKIIELAPVPDSIIAGTPQNSSGSVITATVVDNNGFPVKGVTVNFTSNAATAEMTNGGQAVTNEQGKATVTYTNTRSSIESGARPDTVEASLENGSSTLSTSINVNADASTAHLTLLQALFDTVSAGETTSLYIEVKDNYGNGVPQQEVTLSVSPSEGVTPSNNAIYTTNHDGNFYASFTATKAGVYQLTATLENGDSMQQTVTYVPNVANAEITLAASKDPVIADNNDLTTLTATVADTEGNAIANTEVTFTLPEDVKANFTLSDGGKVITDAEGKAKVTLKGTKAGAHTVTASMTGGKSEQLVVNFIADTLTAQVNLNVTEDNFIANNVGMTRLQATVTDGNGNPLANEAVTFTLPADVSASFTLGQGGSAITDINGKAEVTLSGTKSGTYPVTVSVNNYGVSDTKQVTLIADAGTAKLASLTSVYSFVVSTTEGATMTASVTDANGNPVEGIKVNFRGTSVTLSSTSVETDDRGFAEILVTSTEVGLKTVSASLADKPTEVISRLLNASADVNSATITSLEIPEGQVMVAQDVAVKAHVNDQFGNPVAHQPVTFSAEPSSQMIISQNTVSTNTQGVAEVTMTPERNGSYMVKASLPNGASLEKQLEAIDEKLTLTASSPLIGVYAPTGATLTATLTSANGTPVEGQVINFSVTPEGATLSGGKVRTNSSGQAPVVLTSNKVGTYTVTASFHNGVTIQTQTTVKVTGNSSTAHVASFIADPSTIAATNTDLSTLKATVEDGSGNLIEGLTVYFALKSGSATLTSLTAVTDQNGIATTSVKGAMTGSVTVSAVTTAGGMQTVDITLVAGPADTSQSVLKSNRSSLKGDYTDSAELRLVLHDISGNPIKVSEGMEFVQSGTNVPYIKISAIDYSLNINGDYKATVTGGGEGIATLIPVLNGVHQAGLSTTIQFTRAEDKIMSGTVSVNGTDLPTTTFPSQGFTGAYYQLNNDNFAPGKTAADYEFSSSASWVDVDATGKVTFKNVGSNSERITATPKSGGPSYVYEIRVKSWWVNAGEAFMIYSLAENFCSSNGYTLPRANYLNHCSSRGIGSLYSEWGDMGHYTTDAGFQSNMYWSSSPANSSEQYVVSLATGDQSVFEKLGFAYATCYKNL
 ```
 
-This is `yeeJ`, an inverse autotransporter adhesin — MG1655 YeeJ is reported at 2358 aa
-(minor version difference from our 2367 aa, same gene), and the repeated ~90-residue
-blocks in the sequence match its ~13 bacterial Ig-like (Big) domains. It binds
-peptidoglycan and promotes biofilm formation (Meuskens et al., Sci Rep 2017,
-https://www.nature.com/articles/s41598-017-10902-0).
+I think this is the `yeeJ` gene. When I looked it up, MG1655's YeeJ protein is
+listed at 2358 amino acids, which is really close to the 2367 aa I got — the
+small gap is probably just a different genome build or annotation call, not a
+different gene. My translated sequence also has a lot of repeated ~90-residue
+chunks, which lines up with YeeJ being described as having around 13 repeated
+Ig-like domains. As for what it does: it's an inverse autotransporter that
+sticks to peptidoglycan and helps E. coli form biofilms (Meuskens et al.,
+Scientific Reports, 2017, https://www.nature.com/articles/s41598-017-10902-0).
