@@ -27,8 +27,6 @@ def revcomp(seq):
 
 
 def find_orfs(seq):
-    # ATG -> next in-frame stop codon, per frame. Every ATG before a stop
-    # gets its own ORF ending at that stop. ATGs with no stop are dropped.
     orfs = []
     for frame in range(3):
         open_starts = []
@@ -51,9 +49,6 @@ for line in open("data/Q6/ecoli_genome.fa"):
 genome = "".join(lines)
 genome_len = len(genome)
 
-# positions are reported in 1-based genome coordinates on the forward strand;
-# for "-" strand ORFs, start/end are still those forward coordinates, just
-# read from high to low (start = 5' end of the ORF on the minus strand)
 orfs = []
 for start, end, protein in find_orfs(genome):
     orfs.append(("+", start + 1, end, protein))

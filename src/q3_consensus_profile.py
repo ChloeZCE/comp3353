@@ -29,7 +29,7 @@ for seq in seqs:
         if ch in BASES:
             profile[ch][i] += 1
 
-# consensus + entropy per column (entropy = variability metric)
+# consensus + entropy per column
 consensus = ""
 entropy = []
 for i in range(length):
