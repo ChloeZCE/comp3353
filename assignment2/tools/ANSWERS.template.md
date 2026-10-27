@@ -211,8 +211,10 @@ example (`GAGCCTACTAACGGGAT` / `CATCGTAATGACGGCCT`) gives 7.
 
 ```
 $ python3 src/q2_hamming.py data/Q2/input.fa
-⟨…⟩
+79
 ```
+
+**Answer: the Hamming distance is 79.** Both sequences (`Sequence_1`, `Sequence_2`) are 500 bp long, and they differ at 79 of the 500 positions.
 
 ---
 
@@ -253,18 +255,33 @@ long input sequences. Check: `PLEASANTLY`/`MEANLY` gives 5, the textbook value.
 
 ```
 $ python3 src/q3_edit_distance.py data/Q2/input.fa
-⟨…⟩
+7
 $ python3 src/q3_edit_distance.py data/Q3/input.fa
 ⟨…⟩
 ```
 
-**Comparison with Q2:** On `data/Q2/input.fa` the edit distance is ⟨e⟩ and the
-Hamming distance is ⟨h⟩. The Hamming distance is one valid way to edit `s` into
-`t`: substitutions only, no gaps. So the edit distance is never larger:
-`edit ≤ Hamming`. It is smaller when an insertion plus a deletion fixes a
-shifted stretch more cheaply than substituting every shifted position. For
-example, `ACGTACGT` vs `CGTACGTA` has Hamming distance 8 but edit distance 2.
-⟨State whether the two values are equal or not for your file.⟩
+**Comparison with Q2:** On `data/Q2/input.fa` the edit distance is **7**, but
+the Hamming distance is **79**. The Hamming distance is one valid way to edit
+`s` into `t`: substitutions only, no gaps. So the edit distance can never be
+larger (`edit ≤ Hamming`). Here it is much smaller because the two sequences
+differ by a few insertions and deletions, which Hamming distance cannot model.
+One optimal set of 7 edits (positions in `Sequence_1`, 1-based):
+
+| position in s | edit | cost |
+|---|---|---|
+| 159 | substitute C → G | 1 |
+| after 200 | insert `GC` | 2 |
+| 301–302 | delete `AA` | 2 |
+| 435 | substitute C → A | 1 |
+| 440 | substitute A → G | 1 |
+| | **total** | **7** |
+
+The 2-base insertion after position 200 shifts every later base of `t` two
+places to the right. The 2-base deletion at 301–302 shifts them back. Between
+the two, about 100 positions are compared out of register. Hamming distance
+counts most of them as mismatches: 79 = the 3 real substitutions plus 76
+mismatches caused by the shift. Edit distance aligns around the gap and
+charges only 2 + 2 for the indels.
 
 ---
 
