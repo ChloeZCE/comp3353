@@ -1,0 +1,3 @@
+data/Q1/*.fastq.gz
+data/Q1/ref.fna*
+results/q1/

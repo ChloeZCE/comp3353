@@ -4,11 +4,14 @@
 # Needs: conda install -c bioconda bwa samtools igv
 set -euo pipefail
 
-REF=${1:-data/Q1/reference.fasta}
+REF=${1:-data/Q1/ref.fna}
 R1=${2:-data/Q1/ERR2337147_1.fastq.gz}
 R2=${3:-data/Q1/ERR2337147_2.fastq.gz}
 OUT=results/q1
 mkdir -p "$OUT"
+
+# unzip the reference if only ref.fna.gz is present (samtools faidx/igv want plain FASTA)
+[[ -s $REF ]] || gunzip -k "$REF.gz"
 
 # (a) index the reference, align the pair, sort and index the alignments
 bwa index "$REF"

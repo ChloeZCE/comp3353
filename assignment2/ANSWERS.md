@@ -52,6 +52,8 @@ conda create -n comp3353 -c bioconda -c conda-forge bwa samtools igv
 conda activate comp3353
 ```
 
+Input files (in `data/Q1/`): `ref.fna.gz` (*S. aureus* NCTC 8325 chromosome, NC_007795.1) and `ERR2337147_1/2.fastq.gz` (184,803 read pairs, 250 bp Illumina MiSeq).
+
 Then index the reference, align the two FASTQ files, sort and index the
 results, and open them in igv (`src/run_q1.sh`):
 
@@ -62,11 +64,14 @@ results, and open them in igv (`src/run_q1.sh`):
 # Needs: conda install -c bioconda bwa samtools igv
 set -euo pipefail
 
-REF=${1:-data/Q1/reference.fasta}
+REF=${1:-data/Q1/ref.fna}
 R1=${2:-data/Q1/ERR2337147_1.fastq.gz}
 R2=${3:-data/Q1/ERR2337147_2.fastq.gz}
 OUT=results/q1
 mkdir -p "$OUT"
+
+# unzip the reference if only ref.fna.gz is present (samtools faidx/igv want plain FASTA)
+[[ -s $REF ]] || gunzip -k "$REF.gz"
 
 # (a) index the reference, align the pair, sort and index the alignments
 bwa index "$REF"

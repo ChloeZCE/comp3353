@@ -32,6 +32,8 @@ conda create -n comp3353 -c bioconda -c conda-forge bwa samtools igv
 conda activate comp3353
 ```
 
+Input files (in `data/Q1/`): `ref.fna.gz` (*S. aureus* NCTC 8325 chromosome, NC_007795.1) and `ERR2337147_1/2.fastq.gz` (184,803 read pairs, 250 bp Illumina MiSeq).
+
 Then index the reference, align the two FASTQ files, sort and index the
 results, and open them in igv (`src/run_q1.sh`):
 
