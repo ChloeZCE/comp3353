@@ -1,7 +1,7 @@
 # COMP3353 Bioinformatics — Assignment 2: Sequence alignment and variant calling
 
-**Name:** Zheng Choi I
-**University Number:** 3035987788
+**Name:** Zheng Choi I\
+**University Number:** 3035987788\
 **Email:** u3598778@connect.hku.hk
 
 All code is Python 3 (standard library; `scipy` only for Q6) or bash, and is

@@ -17,3 +17,7 @@ def include(m):
 
 out = re.sub(r"@@(.+?)@@", include, tpl)
 (root / "ANSWERS.md").write_text(out)
+
+# Word/PDF versions for Moodle:
+#   pandoc ANSWERS.md -o ANSWERS.docx --resource-path=.
+#   soffice --headless --convert-to pdf ANSWERS.docx
