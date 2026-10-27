@@ -16,12 +16,17 @@ small FASTA reader that Q2–Q5 import:
 `bash src/run_all.sh` (run from `assignment2/`) re-runs Q2–Q6 and writes every
 output to `results/`.
 
-> **TODO before submitting:** replace every ⟨…⟩ placeholder with the real output
-> or screenshot. Run `bash src/run_q1.sh` for Q1 and `bash src/run_all.sh` for Q2–Q5.
+> **TODO before submitting:** Q1 and Q6 are complete. For Q2–Q5, put the course input
+> files in `data/`, run `bash src/run_all.sh` and replace each ⟨…⟩ placeholder with the output.
 
 ---
 
 ## Question 1 — Sequence alignment with bwa (ERR2337147, *S. aureus*)
+
+Input files (in `data/Q1/`): `ref.fna.gz`, the *S. aureus* NCTC 8325
+chromosome (NC_007795.1, 2,821,361 bp), and `ERR2337147_1.fastq.gz` /
+`ERR2337147_2.fastq.gz` (184,803 read pairs of 250 bp, Illumina MiSeq).
+Tools used: bwa 0.7.18 and samtools 1.24.
 
 ### 1(a) Commands and igv visualisation
 
@@ -32,99 +37,161 @@ conda create -n comp3353 -c bioconda -c conda-forge bwa samtools igv
 conda activate comp3353
 ```
 
-Input files (in `data/Q1/`): `ref.fna.gz` (*S. aureus* NCTC 8325 chromosome, NC_007795.1) and `ERR2337147_1/2.fastq.gz` (184,803 read pairs, 250 bp Illumina MiSeq).
-
-Then index the reference, align the two FASTQ files, sort and index the
-results, and open them in igv (`src/run_q1.sh`):
+I ran every step with `src/run_q1.sh` (run from `assignment2/`), and the full
+output is in `results/q1_output.txt`:
 
 ```bash
 @@src/run_q1.sh@@
 ```
 
-The commands in order:
+The steps:
 
-1. `bwa index ref.fa` builds the FM-index (BWT + suffix array) of the reference
-   (`.amb .ann .bwt .pac .sa`), and `samtools faidx` writes the `.fai` that igv needs.
-2. `bwa mem ref.fa R1 R2 | samtools view -bS -` aligns the two files as a pair
-   and saves the output as BAM.
-3. `samtools sort` orders the records by coordinate, and `samtools index`
-   writes the `.bai` index used for region lookups.
-4. `igv -g ref.fa ERR2337147.sorted.bam` loads the genome and the alignments.
+1. `gunzip -k ref.fna.gz`, then `bwa index ref.fna` builds the FM-index of the
+   reference (`.amb .ann .bwt .pac .sa`). `samtools faidx ref.fna` writes the
+   `.fai` that igv needs.
+2. `bwa mem -t 4 ref.fna R1 R2 | samtools view -bS - > ERR2337147.bam` aligns
+   the two FASTQ files as pairs and saves the output as BAM.
+3. `samtools sort … -o ERR2337147.sorted.bam` orders the records by coordinate.
+   `samtools index` writes the `.bai` used for region lookups and by igv.
+4. `igv -g data/Q1/ref.fna results/q1/ERR2337147.sorted.bam` loads the genome
+   and the alignments. I then typed the region below into the locus box.
 
-**Region shown:** ⟨contig:start-end⟩. I picked it from the five
-best-covered 1 kb windows that the `samtools depth` step prints. Mean depth
-there is ⟨…⟩×.
+`samtools flagstat` on the sorted BAM:
 
-![igv screenshot](results/q1_igv.png)
-⟨insert igv screenshot: coverage track + piled-up reads⟩
+```
+@@results/q1_output.txt:1-16@@
+```
+
+94.9% of the reads mapped and 93.5% are properly paired. Mean depth over the
+whole genome is 30.2× (`samtools depth -a`). bwa estimated the insert size
+at 364 ± 80 bp (FR orientation).
+
+**Region shown: `NC_007795.1:2,041,801-2,042,200`** (400 bp). I wanted a
+region with good coverage and no ambiguous mappings. The 2 kb window
+`NC_007795.1:2,041,001-2,043,000` has mean depth 65.5× (min 43×, max 81×).
+It contains 579 reads, 577 of them with MAPQ 60, and no read with MAPQ < 10.
+
+![igv screenshot of NC_007795.1:2,041,801-2,042,200](results/q1_igv.png)
+
+(This screenshot is from igv.js 3.1.2, the web version of IGV, showing the same
+sorted BAM and reference; `tools/igv_snapshot/` has the page used. Desktop IGV
+shows the same view after `igv -g data/Q1/ref.fna results/q1/ERR2337147.sorted.bam`
+with `NC_007795.1:2,041,801-2,042,200` typed in the locus box.)
+
+The top track is the reference sequence. Below it are the coverage histogram
+(about 70×) and the piled-up reads. Each grey bar is one read, and the arrow
+end shows its strand. Coloured ticks are bases that differ from the reference.
+Several columns are coloured in *every* read covering them. Those are not
+sequencing errors. They are real differences (SNPs) between the sequenced
+isolate and the NCTC 8325 reference strain. Isolated single ticks in one read
+are sequencing errors.
 
 ### 1(b) FLAG of the 10th record
 
 ```
-⟨paste: samtools view results/q1/ERR2337147.sorted.bam | sed -n 10p⟩
+$ samtools view results/q1/ERR2337147.sorted.bam | sed -n 10p | cut -f1-9
+ERR2337147.11	163	NC_007795.1	1	60	97S153M	=	105	352
 ```
 
-Decoder (`src/q1_decode_flag.py`):
+Decoded with `src/q1_decode_flag.py`:
 
 ```python
 @@src/q1_decode_flag.py@@
 ```
 
-FLAG = ⟨value⟩. The FLAG is a sum of powers of two, and each bit is one yes/no property:
+```
+@@results/q1_output.txt:23-36@@
+```
 
-| bit (hex) | decimal | name | set? | meaning |
+**FLAG = 163 = 128 + 32 + 2 + 1** (binary `0000 1010 0011`):
+
+| bit (hex) | decimal | name | set? | meaning for this read |
 |---|---|---|---|---|
-| 0x1 | 1 | PAIRED | ⟨ ⟩ | read comes from a paired-end template |
-| 0x2 | 2 | PROPER_PAIR | ⟨ ⟩ | both mates aligned with the expected orientation and insert size |
-| 0x4 | 4 | UNMAP | ⟨ ⟩ | this read is unmapped |
-| 0x8 | 8 | MUNMAP | ⟨ ⟩ | the mate is unmapped |
-| 0x10 | 16 | REVERSE | ⟨ ⟩ | this read aligned to the reverse strand |
-| 0x20 | 32 | MREVERSE | ⟨ ⟩ | the mate aligned to the reverse strand |
-| 0x40 | 64 | READ1 | ⟨ ⟩ | first read of the pair (from `_1.fastq`) |
-| 0x80 | 128 | READ2 | ⟨ ⟩ | second read of the pair (from `_2.fastq`) |
-| 0x100 | 256 | SECONDARY | ⟨ ⟩ | secondary alignment |
-| 0x200 | 512 | QCFAIL | ⟨ ⟩ | failed vendor QC |
-| 0x400 | 1024 | DUP | ⟨ ⟩ | PCR/optical duplicate |
-| 0x800 | 2048 | SUPPLEMENTARY | ⟨ ⟩ | supplementary (split/chimeric) alignment |
+| 0x1 | 1 | PAIRED | **yes** | the read comes from a paired-end template |
+| 0x2 | 2 | PROPER_PAIR | **yes** | both mates aligned in the expected FR orientation at a plausible distance (TLEN 352, close to the 364 bp mean insert) |
+| 0x4 | 4 | UNMAP | no | the read itself is mapped |
+| 0x8 | 8 | MUNMAP | no | the mate is mapped |
+| 0x10 | 16 | REVERSE | no | the read aligned to the forward strand |
+| 0x20 | 32 | MREVERSE | **yes** | the mate aligned to the reverse strand |
+| 0x40 | 64 | READ1 | no | not the first read |
+| 0x80 | 128 | READ2 | **yes** | the second read of the pair (from `ERR2337147_2.fastq.gz`) |
+| 0x100 | 256 | SECONDARY | no | primary alignment |
+| 0x200 | 512 | QCFAIL | no | passed QC |
+| 0x400 | 1024 | DUP | no | not marked as a duplicate |
+| 0x800 | 2048 | SUPPLEMENTARY | no | not a supplementary (split) alignment |
 
-How to read it: bit 0x40 set means **first** read, bit 0x80 set means
-**second** read. Bit 0x8 set means the mate is **unmapped**, otherwise it is
-mapped. For example, FLAG 99 = 1 + 2 + 32 + 64: paired, proper pair, mate on
-the reverse strand, first read, mate mapped. FLAG 163 = 1 + 2 + 32 + 128 is the
-same but for the second read.
+**Answer:** this is the **second read** of the pair (0x80 set, 0x40 not set),
+and its **mate is mapped** (0x8 not set). The other fields agree: RNEXT `=`,
+PNEXT 105 (the mate starts at position 105), and the pair is properly paired
+on opposite strands.
 
-**Answer:** ⟨first/second⟩ read in the pair; its mate is ⟨mapped/unmapped⟩.
+Its CIGAR `97S153M` and POS 1 are also worth noting. The read starts at the
+very first base of the chromosome, and its first 97 bases are soft-clipped.
+The *S. aureus* chromosome is circular, so those 97 bases come from the end of
+the linear reference sequence, which the aligner cannot wrap around to.
 
 ### 1(c) Reads with MAPQ < 10
 
 ```
-⟨paste the "(c)" block printed by run_q1.sh: count, CIGAR table, clipping fraction, examples⟩
+@@results/q1_output.txt:37-60@@
 ```
 
-**What I find:** ⟨check this against your output⟩ Low-MAPQ reads come in two kinds:
+All 10 examples are in `results/q1_output.txt`. More counts:
 
-* **Full-length matches** (e.g. `151M`) with MAPQ 0 or close to 0. The read
-  aligns perfectly, but just as well to another place in the genome. Examples
-  are the rRNA operons (*S. aureus* has 5–6 copies), IS elements and
-  transposons, and duplicated genes. bwa picks one of the equal hits at
-  random. These reads usually have an `XA:Z` tag listing the other hits, and
-  `XS` (second-best score) close to or equal to `AS`. MAPQ measures how sure the
-  aligner is about the *position*, not how well the bases match. So a perfect
-  `151M` can still have MAPQ 0.
-* **Clipped or gapped alignments** (CIGARs with `S`/`H`, `I`/`D`). Only part
-  of the read aligns, for example a read that crosses a repeat boundary, a
-  chimera, adapter read-through, or reads at contig ends. Their primary/supplementary
-  (`SA:Z`) alignments split the read. A shorter aligned part gives a lower score,
-  which brings the score closer to the second-best hit and lowers MAPQ.
+| MAPQ | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| records | 1937 | 118 | 161 | 152 | 117 | 165 | 163 | 167 | 94 | 195 |
 
-**Example read with MAPQ in [1, 5]:** ⟨QNAME, MAPQ = ⟨m⟩, CIGAR = ⟨e.g. `30S121M`⟩⟩.
-CIGAR operations are read left to right: `M` = aligned base (match *or*
-mismatch), `I` = insertion relative to the reference, `D` = deletion from the
-read, `S` = soft-clip (bases stay in SEQ but are not aligned), `H` = hard-clip
-(bases removed from SEQ). So `30S121M` means the first 30 bases of the read do
-not align and the next 121 bases align from POS onward. Only part of the read
-supports this position, and ⟨there is an XA/SA tag or XS ≈ AS⟩, so the
-placement is ambiguous and MAPQ is low.
+Of the 355,435 mapped records, 3,269 (0.9%) have MAPQ < 10. Their CIGAR
+strings fall into two groups:
+
+1. **Clipped alignments: 2,602 of 3,269 (80%)** have soft (`S`) or hard (`H`)
+   clipping, and many also have indels (`I`/`D`). Only part of the read
+   aligns. 1,850 of them carry an `SA:Z` tag, so the read is split across two
+   places (chimeric or spanning a structural difference from the reference).
+   The `…M…H` CIGARs such as `65M186H` and `47M204H` in the list above are the
+   short supplementary pieces of those split reads; bwa hard-clips the rest of
+   the read in supplementary records. A short aligned piece scores
+   low, so its score is close to the next-best hit, and MAPQ drops.
+2. **Full-length matches: 585 records** are plain `M` with no clipping and no
+   indels (`251M`, `250M`, `249M` …). The whole read aligns, but 574 of them have an `XA:Z` tag listing
+   another equally good or nearly equally good location, and 465 have MAPQ 0.
+   These reads come from **repeats**: rRNA operons, insertion
+   sequences/transposons and duplicated genes, where the aligner cannot tell
+   which copy the read came from. MAPQ is the aligner's confidence in the
+   *position* of a read, not a measure of how well the bases match. So a
+   perfect `250M` alignment can still get MAPQ 0.
+
+In short: low MAPQ comes either from a read that only partly aligns (clipped
+CIGAR) or from a read that aligns equally well in more than one place
+(repeat; full-length `M` plus an `XA` tag).
+
+**Example read with MAPQ in [1, 5]:**
+
+```
+ERR2337147.5185  FLAG 185  NC_007795.1:36551  MAPQ 5  CIGAR 9S240M
+NM:i:6  AS:i:210  XS:i:205  XA:Z:NC_007795.1,-42681,9S240M,7;
+```
+
+* `9S` means the first 9 bases of the read are **soft-clipped**. They stay in
+  SEQ but are not aligned, most likely low-quality bases or bases that do not
+  match the reference here.
+* `240M` means the next 240 bases align to the reference starting at POS 36,551.
+  `M` covers matches *and* mismatches. `NM:i:6` says 6 of the 240 bases differ
+  from the reference, and there are no insertions or deletions.
+* The read is 9 + 240 = 249 bp long and covers reference positions
+  36,551–36,790.
+
+The read aligns in full, so the CIGAR alone does not explain the low MAPQ.
+The tags do. The best alignment scores `AS = 210`, and the second-best hit
+scores `XS = 205`. That second hit is listed in `XA`: position 42,681 on the
+reverse strand, with the *same* CIGAR `9S240M` and 7 mismatches instead of 6.
+This stretch of sequence occurs twice in the genome, about 6 kb apart, and the
+read fits both copies almost equally well; the best copy wins by just one
+mismatch. bwa therefore gives it the primary position but only MAPQ 5, about
+a 30% chance (10^(−5/10) ≈ 0.32) that the position is wrong. FLAG 185 also
+shows that its mate is unmapped (0x8), so there is no proper pair to help pick
+the right copy.
 
 ---
 

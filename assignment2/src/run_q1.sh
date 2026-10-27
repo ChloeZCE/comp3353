@@ -21,6 +21,9 @@ samtools sort "$OUT/ERR2337147.bam" -o "$OUT/ERR2337147.sorted.bam"
 samtools index "$OUT/ERR2337147.sorted.bam"
 samtools flagstat "$OUT/ERR2337147.sorted.bam"
 
+# the pipes below end in `head`, which closes them early; that is not an error
+set +o pipefail
+
 # help pick a well-covered region for the igv screenshot: mean depth per 1 kb window
 samtools depth -a "$OUT/ERR2337147.sorted.bam" \
     | awk '{w=int(($2-1)/1000); s[$1"\t"w*1000+1"-"w*1000+1000]+=$3}

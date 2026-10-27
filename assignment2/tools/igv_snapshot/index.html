@@ -1,0 +1,14 @@
+<!doctype html><html><body style="margin:0;background:#fff">
+<div id="igv"></div>
+<script src="igv.min.js"></script>
+<script>
+igv.createBrowser(document.getElementById("igv"), {
+  loadDefaultGenomes: false, genomeList: [], showCursorGuide: false,
+  reference: {id: "NC_007795.1", name: "S. aureus NCTC 8325 (NC_007795.1)",
+              fastaURL: "ref.fna", indexURL: "ref.fna.fai"},
+  locus: "NC_007795.1:2041801-2042200",
+  tracks: [{type: "alignment", format: "bam", name: "ERR2337147.sorted.bam",
+            url: "ERR2337147.sorted.bam", indexURL: "ERR2337147.sorted.bam.bai",
+            height: 640, displayMode: "EXPANDED"}]
+}).then(b => { window.igvReady = true; });
+</script></body></html>
