@@ -16,8 +16,6 @@ small FASTA reader that Q2–Q5 import:
 `bash src/run_all.sh` (run from `assignment2/`) re-runs Q2–Q6 and writes every
 output to `results/`.
 
-> **TODO before submitting:** Q1 and Q6 are complete. For Q2–Q5, put the course input
-> files in `data/`, run `bash src/run_all.sh` and replace each ⟨…⟩ placeholder with the output.
 
 ---
 
@@ -257,8 +255,23 @@ long input sequences. Check: `PLEASANTLY`/`MEANLY` gives 5, the textbook value.
 $ python3 src/q3_edit_distance.py data/Q2/input.fa
 7
 $ python3 src/q3_edit_distance.py data/Q3/input.fa
-⟨…⟩
+1704
 ```
+
+**Answer for `data/Q3/input.fa`: the edit distance is 1704.** The file holds
+two hepatitis B virus genomes: X02763.1 (serotype adw2, 3,221 bp) and
+NC_003977.2 (strain ayw, 3,182 bp). Computing it fills a 3,222 × 3,183 matrix,
+about 10 million cells, which takes about 1.5 s.
+
+1704 is much higher than the true difference between the two viruses. The HBV
+genome is circular, and the two records start at different points of the
+circle: the first 30 bases of X02763.1 appear at position 1,815 of
+NC_003977.2. Edit distance compares the strings as linear sequences, so it has
+to delete a large block at one end and insert it again at the other end. When
+I rotate NC_003977.2 so that both start at the same base, the edit distance
+drops to **335**, about 10% of the genome. That is roughly what you would
+expect between two different HBV strains. The 39 bp length difference
+(3,221 vs 3,182) is part of those 335 edits.
 
 **Comparison with Q2:** On `data/Q2/input.fa` the edit distance is **7**, but
 the Hamming distance is **79**. The Hamming distance is one valid way to edit
@@ -305,19 +318,48 @@ Random DNA strings match a brute-force sort of all rotations.
 
 ```
 $ python3 src/bwt.py encode data/Q4/input1.fa
-⟨…⟩
+TC$GAATCCGG
 $ python3 src/bwt.py encode data/Q4/input2.fa | cut -c1-50
-⟨…⟩
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACTGTCTTCTTTCCTTGG
 ```
 
-**What I find:** ⟨confirm against your output⟩ The BWT contains the same
-symbols as the input plus one `$`, only reordered. The reordering puts
-identical characters next to each other in long runs (e.g. `AAAAAA`,
-`TTTT`). This happens because rotations that start with the same context
-(e.g. every `CGT…`) sort next to each other, and in real DNA they tend to be
-preceded by the same base. The longer and more repetitive the sequence (input2),
-the longer these runs get. That is why the BWT compresses well with run-length
-encoding, and why it is useful for search.
+**input1** (`ACGTGCACGT`, 10 bp). The sorted rotations of `ACGTGCACGT$` are:
+
+| row | rotation | last column |
+|---|---|---|
+| 0 | `$ACGTGCACGT` | T |
+| 1 | `ACGT$ACGTGC` | C |
+| 2 | `ACGTGCACGT$` | $ |
+| 3 | `CACGT$ACGTG` | G |
+| 4 | `CGT$ACGTGCA` | A |
+| 5 | `CGTGCACGT$A` | A |
+| 6 | `GCACGT$ACGT` | T |
+| 7 | `GT$ACGTGCAC` | C |
+| 8 | `GTGCACGT$AC` | C |
+| 9 | `T$ACGTGCACG` | G |
+| 10 | `TGCACGT$ACG` | G |
+
+Reading the last column top to bottom gives **BWT = `TC$GAATCCGG`**.
+
+**input2** is the SARS-CoV-2 reference genome (NC_045512.2, 29,903 bp). The
+first 50 BWT symbols are `AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACTGTCTTCTTTCCTTGG`.
+
+**What I find:** the BWT starts with a run of **33 A's**. The genome ends with
+a 33-nt poly-A tail (`…GAATGAC` followed by 33 `A`). In the sorted rotation
+matrix, row 0 is the rotation starting with `$`, and its last character is the
+final base of the genome, an A. The rows right after it start with `A$`,
+`AA$`, `AAA$`, …, i.e. the suffixes inside the poly-A tail. Each of those is
+preceded by another A, so all of them put an A in the last column. Row 33
+(`AAA…A$`, the whole tail) is preceded by the C before the tail, which is
+where the run ends.
+
+This is the general property of the BWT: rotations that start with the same
+context sort next to each other, and the same context tends to be preceded by
+the same base. So the BWT groups identical symbols into runs. Over the whole
+input2 BWT there are 21,518 runs for 29,904 symbols (longest run 33). This is
+why the BWT compresses well with run-length encoding. The BWT holds exactly
+the same symbols as the input plus one `$`, only reordered, which is what
+makes it reversible (4b) and searchable (Q5).
 
 ### 4(b) Decoder
 
@@ -331,13 +373,20 @@ runs in O(n).
 
 ```
 $ python3 src/bwt.py decode data/Q4/input3.txt
-⟨…⟩
+AGTTGTTGATCTGTGTGAGTCAGACTGCGACAGTTCGAGTCTGAAGCGAGA
 $ python3 src/bwt.py encode data/Q4/input1.fa > results/input1.bwt.txt
 $ python3 src/bwt.py decode results/input1.bwt.txt
-⟨…⟩
+ACGTGCACGT
 ```
 
-**Is it the same as the original?** ⟨Yes — `run_all.sh` prints `identical: True`⟩.
+**input3:** the BWT string `AGGGGGCAGGC$GTAGGTTATATCACTCTTAAATTATAGTGACGTCGCTGGG`
+(52 symbols) decodes to the 51 bp sequence
+**`AGTTGTTGATCTGTGTGAGTCAGACTGCGACAGTTCGAGTCTGAAGCGAGA`**. Encoding that
+sequence again gives back exactly the input3 string.
+
+**Is it the same as the original?** **Yes.** Decoding `TC$GAATCCGG` gives
+`ACGTGCACGT`, which is identical to the sequence in `data/Q4/input1.fa`
+(`run_all.sh` prints `identical: True`).
 The BWT can be inverted exactly because the `$` marker fixes where the text ends.
 I also tested encode→decode on 300 random strings and one random 200 kb
 string, and every one came back unchanged.
@@ -373,19 +422,35 @@ strings. On `ACGTACGTTACGTAACG` the trace is `T:[14,18) → G:[11,14) → C:[7,1
 ### Output on {data/Q4/input1.fa, s = "ACGT"} (BWT, C, Occ and search steps)
 
 ```
-$ python3 src/q5_fm_search.py data/Q4/input1.fa ACGT --show-occ 1000
-⟨…⟩
+@@results/q5_output.txt:1-30@@
 ```
+
+**Answer: `ACGT` occurs 2 times in input1.** By hand, the steps are:
+
+1. Start with all rows `[0, 11)`.
+2. `T`: `lo = C[T] + Occ(T,0) = 9 + 0 = 9`, `hi = C[T] + Occ(T,11) = 9 + 2 = 11` → `[9, 11)`, the rows starting with `T`.
+3. `G`: `lo = 6 + Occ(G,9) = 6 + 1 = 7`, `hi = 6 + Occ(G,11) = 6 + 3 = 9` → `[7, 9)`, the rows starting with `GT`.
+4. `C`: `lo = 3 + Occ(C,7) = 3 + 1 = 4`, `hi = 3 + Occ(C,9) = 3 + 3 = 6` → `[4, 6)`, the rows starting with `CGT`.
+5. `A`: `lo = 1 + Occ(A,4) = 1 + 0 = 1`, `hi = 1 + Occ(A,6) = 1 + 2 = 3` → `[1, 3)`, the rows starting with `ACGT`.
+
+`hi − lo = 3 − 1 = 2`. Rows 1 and 2 in the rotation table of Q4(a) are
+`ACGT$ACGTGC` and `ACGTGCACGT$`, i.e. the matches at positions 7 and 1 of
+`ACGTGCACGT`.
 
 ### Output on {data/Q4/input2.fa, s = "ACGT"}
 
 ```
-$ python3 src/q5_fm_search.py data/Q4/input2.fa ACGT
-⟨…⟩
+@@results/q5_output.txt:32-45@@
+   ...   (rows 5-29 are all A as well; full output in results/q5_output.txt)
+@@results/q5_output.txt:71-79@@
 ```
 
-(For the long input2 the script prints only the first 30 rows of the `Occ`
-matrix plus its final row. The full matrix has n+1 rows.)
+(For the long input2 the script prints only the BWT's first 200 symbols and
+the first 30 rows of the `Occ` matrix plus its final row. The full matrix has
+29,905 rows.)
+
+**Answer: `ACGT` occurs 64 times in the SARS-CoV-2 genome.** A direct scan
+of the sequence for overlapping matches also gives 64.
 
 ---
 

@@ -1,0 +1,6 @@
+$ python3 q3_edit_distance.py ../data/Q2/input.fa
+7
+
+$ python3 q3_edit_distance.py ../data/Q3/input.fa
+1704
+

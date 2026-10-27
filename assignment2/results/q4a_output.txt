@@ -1,0 +1,6 @@
+$ python3 bwt.py encode ../data/Q4/input1.fa
+TC$GAATCCGG
+
+$ python3 bwt.py encode ../data/Q4/input2.fa | cut -c1-50
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACTGTCTTCTTTCCTTGG
+
