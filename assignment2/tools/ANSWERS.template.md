@@ -17,7 +17,9 @@ Illumina MiSeq) and the *S. aureus* NCTC 8325 reference genome
 
 ### 1(a) Alignment and visualisation
 
-Commands I ran, following tutorial 2:
+#### 1(a)(i) Commands
+
+The commands I ran, following tutorial 2:
 
 ```bash
 # install
@@ -39,6 +41,8 @@ samtools index results/q1/ERR2337147.sorted.bam
 # visualise the genome and the alignments
 igv -g data/Q1/ref.fna results/q1/ERR2337147.sorted.bam
 ```
+
+#### 1(a)(ii) igv screenshot and the region I picked
 
 As a quick check I also ran `samtools flagstat`. 94.9% of the reads mapped,
 and 93.5% were properly paired. The average depth over the genome is about 30×.
@@ -65,6 +69,8 @@ sorted BAM and reference.)
 
 ### 1(b) FLAG of the 10th record
 
+#### 1(b)(i) The 10th record
+
 ```bash
 samtools view results/q1/ERR2337147.sorted.bam | sed -n 10p
 ```
@@ -72,6 +78,8 @@ samtools view results/q1/ERR2337147.sorted.bam | sed -n 10p
 ```
 ERR2337147.11   163   NC_007795.1   1   60   97S153M   =   105   352   ...
 ```
+
+#### 1(b)(ii) Decoding the FLAG
 
 The FLAG is **163**. Written as a sum of bits, 163 = 128 + 32 + 2 + 1:
 
@@ -90,7 +98,9 @@ The FLAG is **163**. Written as a sum of bits, 163 = 128 + 32 + 2 + 1:
 | 0x400 | 1024 | PCR or optical duplicate | not set |
 | 0x800 | 2048 | supplementary alignment | not set |
 
-So this is the **second read** in the pair, and its **mate is mapped**. The
+#### 1(b)(iii) Answer
+
+This is the **second read** in the pair, and its **mate is mapped**. The
 mate is on the reverse strand at position 105, and the fragment is 352 bp
 long, which is a normal insert size for this library (bwa estimated
 364 ± 80 bp).
@@ -100,6 +110,8 @@ its first 97 bases are clipped. The *S. aureus* chromosome is circular, so
 those 97 bases actually come from the very end of the reference sequence.
 
 ### 1(c) Reads with MAPQ < 10
+
+#### 1(c)(i) What I find in the CIGAR strings
 
 ```bash
 samtools view -F 4 results/q1/ERR2337147.sorted.bam | awk '$5 < 10 {print $6}' | sort | uniq -c | sort -nr | head
@@ -124,7 +136,7 @@ Looking at their CIGAR strings, I found two kinds of reads:
    bwa can't tell which copy they belong to. This shows that MAPQ is about how
    sure the aligner is of the *position*, not how good the match is.
 
-**Example read with MAPQ in [1, 5]:**
+#### 1(c)(ii) A representative read with MAPQ in [1, 5]
 
 ```
 ERR2337147.5185   FLAG 185   NC_007795.1:36551   MAPQ 5   CIGAR 9S240M
@@ -149,7 +161,7 @@ Its mate is unmapped (FLAG bit 0x8), so the pair can't help decide either.
 
 ## Question 2: Hamming distance
 
-### Source code
+### 2(i) Source code
 
 ```python
 @@src/q2_hamming.py@@
@@ -159,7 +171,7 @@ Its mate is unmapped (FLAG bit 0x8), so the pair can't help decide either.
 `hamming` walks along both sequences together and counts the positions where
 the letters differ.
 
-### Output on `data/Q2/input.fa`
+### 2(ii) Output on `data/Q2/input.fa`
 
 ```
 $ python3 src/q2_hamming.py data/Q2/input.fa
@@ -170,13 +182,13 @@ The Hamming distance is **79**. Both sequences are 500 bp.
 
 ## Question 3: Edit distance
 
-### Source code
+### 3(i) Source code
 
 ```python
 @@src/q3_edit_distance.py@@
 ```
 
-### How I populate the distance matrix
+### 3(ii) How I populate the distance matrix
 
 I make a matrix `D` with `len(s) + 1` rows and `len(t) + 1` columns.
 `D[i][j]` is the edit distance between the first `i` letters of `s` and the
@@ -197,7 +209,7 @@ first `j` letters of `t`.
    I take the smallest of the three.
 3. **The answer** is the bottom-right cell, `D[len(s)][len(t)]`.
 
-### Output on `data/Q2/input.fa`, compared with Question 2
+### 3(iii) Output on `data/Q2/input.fa`, compared with Question 2
 
 ```
 $ python3 src/q3_edit_distance.py data/Q2/input.fa
@@ -226,7 +238,7 @@ insert and delete, so it charges only 2 + 2 for the shift. In general the
 edit distance can never be bigger than the Hamming distance, because
 substitutions alone are one possible way to edit one sequence into the other.
 
-### Output on `data/Q3/input.fa`
+### 3(iv) Output on `data/Q3/input.fa`
 
 ```
 $ python3 src/q3_edit_distance.py data/Q3/input.fa
@@ -245,20 +257,22 @@ like what I'd expect between two strains.
 
 ## Question 4: BWT encoder and decoder
 
-### Source code (encoder and decoder)
+### 4(a) The BWT encoder
+
+#### 4(a)(i) Source code
+
+Both the encoder and the decoder are in `src/bwt.py`. This is the encoder part:
 
 ```python
-@@src/bwt.py@@
+@@src/bwt.py:1-39@@
 ```
-
-### 4(a) The BWT encoder
 
 To encode, I add `$` to the end of the sequence, sort all its rotations, and
 take the last letter of each rotation. Sorting the rotations is the same as
 sorting the suffixes, so `suffix_array` sorts the suffix start positions
 instead of building every rotation. That keeps memory low for the 30 kb genome.
 
-**Output on `data/Q4/input1.fa`:**
+#### 4(a)(ii) Output on `data/Q4/input1.fa`
 
 ```
 $ python3 src/bwt.py encode data/Q4/input1.fa
@@ -282,7 +296,7 @@ the last column from top to bottom gives `TC$GAATCCGG`.
 | 9 | `T$ACGTGCACG` | G |
 | 10 | `TGCACGT$ACG` | G |
 
-**Output on `data/Q4/input2.fa` (first 50 symbols):**
+#### 4(a)(iii) Output on `data/Q4/input2.fa` (first 50 symbols), and what I find
 
 ```
 $ python3 src/bwt.py encode data/Q4/input2.fa | cut -c1-50
@@ -303,6 +317,14 @@ compresses well, and why it is useful for searching.
 
 ### 4(b) The BWT decoder
 
+#### 4(b)(i) Source code
+
+The decoder part of `src/bwt.py` (it uses `read_fasta` and `bwt_encode` from 4(a)(i) when run as a script):
+
+```python
+@@src/bwt.py:42-69@@
+```
+
 To decode, I use the LF mapping. The first column of the sorted rotations is
 just the BWT sorted, and the k-th `A` in the last column is the same `A` in
 the text as the k-th `A` in the first column (the same holds for every
@@ -310,14 +332,14 @@ letter). Row 0 starts with `$`, so its last letter is the final base of the
 sequence. From there, following the LF mapping steps backwards through the
 sequence one base at a time.
 
-**Output on `data/Q4/input3.txt`:**
+#### 4(b)(ii) Output on `data/Q4/input3.txt`
 
 ```
 $ python3 src/bwt.py decode data/Q4/input3.txt
 AGTTGTTGATCTGTGTGAGTCAGACTGCGACAGTTCGAGTCTGAAGCGAGA
 ```
 
-**Output on the BWT of `data/Q4/input1.fa`:**
+#### 4(b)(iii) Output on the BWT string from `data/Q4/input1.fa`
 
 ```
 $ python3 src/bwt.py encode data/Q4/input1.fa > input1.bwt.txt
@@ -334,7 +356,7 @@ input3 string.
 
 I chose to write code, reusing `read_fasta` and `bwt_encode` from Question 4.
 
-### Source code
+### 5(i) Source code
 
 ```python
 @@src/q5_fm_search.py@@
@@ -353,7 +375,7 @@ How it works:
   range holds exactly the rotations that start with the part of the motif read
   so far. At the end, the number of matches is `hi − lo`.
 
-### Output on {path: `data/Q4/input1.fa`, s: "ACGT"}
+### 5(ii) Output on {path: `data/Q4/input1.fa`, s: "ACGT"}
 
 ```
 @@results/q5_output.txt:1-22@@
@@ -372,7 +394,7 @@ Step by step, using the C and Occ tables above:
 **ACGT occurs 3 − 1 = 2 times.** Rows 1 and 2 in the rotation table of 4(a)
 are the two matches, at positions 1 and 7 of `ACGTGCACGT`.
 
-### Output on {path: `data/Q4/input2.fa`, s: "ACGT"}
+### 5(iii) Output on {path: `data/Q4/input2.fa`, s: "ACGT"}
 
 ```
 @@results/q5_output.txt:24-48@@
@@ -386,13 +408,15 @@ ACGT directly in the sequence, which also gives 64.
 
 ## Question 6: Variant calling
 
-### Source code
+I chose to write code. The same script answers all three parts.
+
+### 6(i) Source code
 
 ```python
 @@src/q6_variant_calling.py@@
 ```
 
-### Setting up the calculation
+### 6(ii) How I set up the calculation
 
 The reference base is A and some reads show T. For each genotype I first need
 the chance that a single read shows T:
@@ -410,7 +434,7 @@ P(genotype | reads) = P(reads | genotype) × P(genotype) / P(reads)
 where P(reads) is the sum of P(reads | genotype) × P(genotype) over all three
 genotypes. The patient is a mutant if the genotype is AT or TT.
 
-### Output
+### 6(iii) Output
 
 ```
 @@results/q6_output.txt@@
