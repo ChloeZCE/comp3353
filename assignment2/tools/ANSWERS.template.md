@@ -1,209 +1,163 @@
 # COMP3353 Bioinformatics — Assignment 2: Sequence alignment and variant calling
 
-**Name:** Zheng Choi I\
-**University Number:** 3035987788\
-**Email:** u3598778@connect.hku.hk
+Name: Zheng Choi I
 
-All code is Python 3 (standard library; `scipy` only for Q6) or bash, and is
-also in the `src/` folder of this submission. Every Python script reads its
-input path from the command line, as the questions require. `src/fasta.py` is a
-small FASTA reader that Q2–Q5 import:
+University Number: 3035987788
 
-```python
-@@src/fasta.py@@
-```
+Email: u3598778@connect.hku.hk
 
-`bash src/run_all.sh` (run from `assignment2/`) re-runs Q2–Q6 and writes every
-output to `results/`.
+All my code is also in the `src/` folder. Each Python script takes its input
+file path on the command line, e.g. `python3 src/q2_hamming.py data/Q2/input.fa`.
 
+## Question 1: Run sequence alignment with bwa
 
----
+The data are the paired-end reads of ERR2337147 (184,803 read pairs, 250 bp,
+Illumina MiSeq) and the *S. aureus* NCTC 8325 reference genome
+(NC_007795.1, 2,821,361 bp).
 
-## Question 1 — Sequence alignment with bwa (ERR2337147, *S. aureus*)
+### 1(a) Alignment and visualisation
 
-Input files (in `data/Q1/`): `ref.fna.gz`, the *S. aureus* NCTC 8325
-chromosome (NC_007795.1, 2,821,361 bp), and `ERR2337147_1.fastq.gz` /
-`ERR2337147_2.fastq.gz` (184,803 read pairs of 250 bp, Illumina MiSeq).
-Tools used: bwa 0.7.18 and samtools 1.24.
-
-### 1(a) Commands and igv visualisation
-
-Install the tools (same conda environment as tutorial 2):
+Commands I ran, following tutorial 2:
 
 ```bash
-conda create -n comp3353 -c bioconda -c conda-forge bwa samtools igv
-conda activate comp3353
+# install
+conda install -c bioconda bwa samtools igv
+
+# unzip and index the reference genome
+gunzip -k data/Q1/ref.fna.gz
+bwa index data/Q1/ref.fna
+samtools faidx data/Q1/ref.fna
+
+# align the two FASTQ files to the reference
+bwa mem -t 4 data/Q1/ref.fna data/Q1/ERR2337147_1.fastq.gz data/Q1/ERR2337147_2.fastq.gz \
+    | samtools view -bS - > results/q1/ERR2337147.bam
+
+# sort and index the alignments
+samtools sort results/q1/ERR2337147.bam -o results/q1/ERR2337147.sorted.bam
+samtools index results/q1/ERR2337147.sorted.bam
+
+# visualise the genome and the alignments
+igv -g data/Q1/ref.fna results/q1/ERR2337147.sorted.bam
 ```
 
-I ran every step with `src/run_q1.sh` (run from `assignment2/`), and the full
-output is in `results/q1_output.txt`:
+As a quick check I also ran `samtools flagstat`. 94.9% of the reads mapped,
+and 93.5% were properly paired. The average depth over the genome is about 30×.
 
-```bash
-@@src/run_q1.sh@@
-```
+To find a region with good coverage I calculated the average depth in 1 kb
+windows with `samtools depth -a` (the full command is in `src/run_q1.sh`). I
+picked a window where the depth is high but every read maps with high
+confidence, so the pile-up isn't inflated by repeats.
 
-The steps:
+**Region shown: NC_007795.1:2,041,801-2,042,200.** Depth here is about 65–70×.
+In the surrounding 2 kb (2,041,001-2,043,000), 577 of the 579 reads have MAPQ 60.
 
-1. `gunzip -k ref.fna.gz`, then `bwa index ref.fna` builds the FM-index of the
-   reference (`.amb .ann .bwt .pac .sa`). `samtools faidx ref.fna` writes the
-   `.fai` that igv needs.
-2. `bwa mem -t 4 ref.fna R1 R2 | samtools view -bS - > ERR2337147.bam` aligns
-   the two FASTQ files as pairs and saves the output as BAM.
-3. `samtools sort … -o ERR2337147.sorted.bam` orders the records by coordinate.
-   `samtools index` writes the `.bai` used for region lookups and by igv.
-4. `igv -g data/Q1/ref.fna results/q1/ERR2337147.sorted.bam` loads the genome
-   and the alignments. I then typed the region below into the locus box.
+![IGV view of NC_007795.1:2,041,801-2,042,200](results/q1_igv.png)
 
-`samtools flagstat` on the sorted BAM:
+The coverage track is at the top and the piled-up reads are below it (grey
+bars, with arrows showing the strand). Coloured marks are bases that differ
+from the reference. Some columns are coloured in every single read. Those
+can't be sequencing errors; they are real SNPs where this isolate differs from
+the NCTC 8325 reference strain. The odd single coloured mark in one read is a
+sequencing error.
 
-```
-@@results/q1_output.txt:1-16@@
-```
-
-94.9% of the reads mapped and 93.5% are properly paired. Mean depth over the
-whole genome is 30.2× (`samtools depth -a`). bwa estimated the insert size
-at 364 ± 80 bp (FR orientation).
-
-**Region shown: `NC_007795.1:2,041,801-2,042,200`** (400 bp). I wanted a
-region with good coverage and no ambiguous mappings. The 2 kb window
-`NC_007795.1:2,041,001-2,043,000` has mean depth 65.5× (min 43×, max 81×).
-It contains 579 reads, 577 of them with MAPQ 60, and no read with MAPQ < 10.
-
-![igv screenshot of NC_007795.1:2,041,801-2,042,200](results/q1_igv.png)
-
-(This screenshot is from igv.js 3.1.2, the web version of IGV, showing the same
-sorted BAM and reference; `tools/igv_snapshot/` has the page used. Desktop IGV
-shows the same view after `igv -g data/Q1/ref.fna results/q1/ERR2337147.sorted.bam`
-with `NC_007795.1:2,041,801-2,042,200` typed in the locus box.)
-
-The top track is the reference sequence. Below it are the coverage histogram
-(about 70×) and the piled-up reads. Each grey bar is one read, and the arrow
-end shows its strand. Coloured ticks are bases that differ from the reference.
-Several columns are coloured in *every* read covering them. Those are not
-sequencing errors. They are real differences (SNPs) between the sequenced
-isolate and the NCTC 8325 reference strain. Isolated single ticks in one read
-are sequencing errors.
+(I made this screenshot with igv.js, the web version of IGV, loading the same
+sorted BAM and reference.)
 
 ### 1(b) FLAG of the 10th record
 
-```
-$ samtools view results/q1/ERR2337147.sorted.bam | sed -n 10p | cut -f1-9
-ERR2337147.11	163	NC_007795.1	1	60	97S153M	=	105	352
-```
-
-Decoded with `src/q1_decode_flag.py`:
-
-```python
-@@src/q1_decode_flag.py@@
+```bash
+samtools view results/q1/ERR2337147.sorted.bam | sed -n 10p
 ```
 
 ```
-@@results/q1_output.txt:23-36@@
+ERR2337147.11   163   NC_007795.1   1   60   97S153M   =   105   352   ...
 ```
 
-**FLAG = 163 = 128 + 32 + 2 + 1** (binary `0000 1010 0011`):
+The FLAG is **163**. Written as a sum of bits, 163 = 128 + 32 + 2 + 1:
 
-| bit (hex) | decimal | name | set? | meaning for this read |
-|---|---|---|---|---|
-| 0x1 | 1 | PAIRED | **yes** | the read comes from a paired-end template |
-| 0x2 | 2 | PROPER_PAIR | **yes** | both mates aligned in the expected FR orientation at a plausible distance (TLEN 352, close to the 364 bp mean insert) |
-| 0x4 | 4 | UNMAP | no | the read itself is mapped |
-| 0x8 | 8 | MUNMAP | no | the mate is mapped |
-| 0x10 | 16 | REVERSE | no | the read aligned to the forward strand |
-| 0x20 | 32 | MREVERSE | **yes** | the mate aligned to the reverse strand |
-| 0x40 | 64 | READ1 | no | not the first read |
-| 0x80 | 128 | READ2 | **yes** | the second read of the pair (from `ERR2337147_2.fastq.gz`) |
-| 0x100 | 256 | SECONDARY | no | primary alignment |
-| 0x200 | 512 | QCFAIL | no | passed QC |
-| 0x400 | 1024 | DUP | no | not marked as a duplicate |
-| 0x800 | 2048 | SUPPLEMENTARY | no | not a supplementary (split) alignment |
+| Bit | Value | Meaning | In this read |
+|---|---|---|---|
+| 0x1 | 1 | read is paired | set: yes, it is paired |
+| 0x2 | 2 | read mapped in a proper pair | set: yes |
+| 0x4 | 4 | read is unmapped | not set: the read is mapped |
+| 0x8 | 8 | mate is unmapped | not set: the mate is mapped |
+| 0x10 | 16 | read is on the reverse strand | not set: forward strand |
+| 0x20 | 32 | mate is on the reverse strand | set: the mate is on the reverse strand |
+| 0x40 | 64 | first read in the pair | not set |
+| 0x80 | 128 | second read in the pair | set |
+| 0x100 | 256 | secondary alignment | not set |
+| 0x200 | 512 | failed quality checks | not set |
+| 0x400 | 1024 | PCR or optical duplicate | not set |
+| 0x800 | 2048 | supplementary alignment | not set |
 
-**Answer:** this is the **second read** of the pair (0x80 set, 0x40 not set),
-and its **mate is mapped** (0x8 not set). The other fields agree: RNEXT `=`,
-PNEXT 105 (the mate starts at position 105), and the pair is properly paired
-on opposite strands.
+So this is the **second read** in the pair, and its **mate is mapped**. The
+mate is on the reverse strand at position 105, and the fragment is 352 bp
+long, which is a normal insert size for this library (bwa estimated
+364 ± 80 bp).
 
-Its CIGAR `97S153M` and POS 1 are also worth noting. The read starts at the
-very first base of the chromosome, and its first 97 bases are soft-clipped.
-The *S. aureus* chromosome is circular, so those 97 bases come from the end of
-the linear reference sequence, which the aligner cannot wrap around to.
+I also noticed this read sits right at position 1 with the CIGAR `97S153M`:
+its first 97 bases are clipped. The *S. aureus* chromosome is circular, so
+those 97 bases actually come from the very end of the reference sequence.
 
 ### 1(c) Reads with MAPQ < 10
 
+```bash
+samtools view -F 4 results/q1/ERR2337147.sorted.bam | awk '$5 < 10 {print $6}' | sort | uniq -c | sort -nr | head
 ```
-@@results/q1_output.txt:37-60@@
+
+```
+@@results/q1_output.txt:39-53@@
 ```
 
-All 10 examples are in `results/q1_output.txt`. More counts:
+There are 3,269 alignments with MAPQ < 10, under 1% of all mapped alignments.
+Looking at their CIGAR strings, I found two kinds of reads:
 
-| MAPQ | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
-|---|---|---|---|---|---|---|---|---|---|---|
-| records | 1937 | 118 | 161 | 152 | 117 | 165 | 163 | 167 | 94 | 195 |
-
-Of the 355,435 mapped records, 3,269 (0.9%) have MAPQ < 10. Their CIGAR
-strings fall into two groups:
-
-1. **Clipped alignments: 2,602 of 3,269 (80%)** have soft (`S`) or hard (`H`)
-   clipping, and many also have indels (`I`/`D`). Only part of the read
-   aligns. 1,850 of them carry an `SA:Z` tag, so the read is split across two
-   places (chimeric or spanning a structural difference from the reference).
-   The `…M…H` CIGARs such as `65M186H` and `47M204H` in the list above are the
-   short supplementary pieces of those split reads; bwa hard-clips the rest of
-   the read in supplementary records. A short aligned piece scores
-   low, so its score is close to the next-best hit, and MAPQ drops.
-2. **Full-length matches: 585 records** are plain `M` with no clipping and no
-   indels (`251M`, `250M`, `249M` …). The whole read aligns, but 574 of them have an `XA:Z` tag listing
-   another equally good or nearly equally good location, and 465 have MAPQ 0.
-   These reads come from **repeats**: rRNA operons, insertion
-   sequences/transposons and duplicated genes, where the aligner cannot tell
-   which copy the read came from. MAPQ is the aligner's confidence in the
-   *position* of a read, not a measure of how well the bases match. So a
-   perfect `250M` alignment can still get MAPQ 0.
-
-In short: low MAPQ comes either from a read that only partly aligns (clipped
-CIGAR) or from a read that aligns equally well in more than one place
-(repeat; full-length `M` plus an `XA` tag).
+1. **Most of them (2,602, about 80%) are clipped.** Their CIGARs contain `S`
+   or `H`, e.g. `65M186H` or `8M3I25M1I14M3D69M131S`, so only part of the read lines up
+   with the reference. Many of these reads are split across two places in
+   the genome (they have an `SA` tag). A shorter aligned piece gets a lower
+   score, which makes the aligner less sure of the position.
+2. **The rest align perfectly along their full length** (`251M`, `250M`),
+   yet still have low MAPQ. Almost all of them (574 of 585) have an `XA` tag
+   listing another place in the genome where they fit just as well. These
+   reads come from repeated sequences, such as the multiple rRNA operons, so
+   bwa can't tell which copy they belong to. This shows that MAPQ is about how
+   sure the aligner is of the *position*, not how good the match is.
 
 **Example read with MAPQ in [1, 5]:**
 
 ```
-ERR2337147.5185  FLAG 185  NC_007795.1:36551  MAPQ 5  CIGAR 9S240M
-NM:i:6  AS:i:210  XS:i:205  XA:Z:NC_007795.1,-42681,9S240M,7;
+ERR2337147.5185   FLAG 185   NC_007795.1:36551   MAPQ 5   CIGAR 9S240M
+NM:i:6   AS:i:210   XS:i:205   XA:Z:NC_007795.1,-42681,9S240M,7
 ```
 
-* `9S` means the first 9 bases of the read are **soft-clipped**. They stay in
-  SEQ but are not aligned, most likely low-quality bases or bases that do not
-  match the reference here.
-* `240M` means the next 240 bases align to the reference starting at POS 36,551.
-  `M` covers matches *and* mismatches. `NM:i:6` says 6 of the 240 bases differ
-  from the reference, and there are no insertions or deletions.
-* The read is 9 + 240 = 249 bp long and covers reference positions
-  36,551–36,790.
+The CIGAR `9S240M` means:
 
-The read aligns in full, so the CIGAR alone does not explain the low MAPQ.
-The tags do. The best alignment scores `AS = 210`, and the second-best hit
-scores `XS = 205`. That second hit is listed in `XA`: position 42,681 on the
-reverse strand, with the *same* CIGAR `9S240M` and 7 mismatches instead of 6.
-This stretch of sequence occurs twice in the genome, about 6 kb apart, and the
-read fits both copies almost equally well; the best copy wins by just one
-mismatch. bwa therefore gives it the primary position but only MAPQ 5, about
-a 30% chance (10^(−5/10) ≈ 0.32) that the position is wrong. FLAG 185 also
-shows that its mate is unmapped (0x8), so there is no proper pair to help pick
-the right copy.
+- `9S`: the first 9 bases are soft-clipped. They are still in the read
+  sequence but are not aligned.
+- `240M`: the next 240 bases are aligned to the reference starting at position
+  36,551. `M` includes both matches and mismatches; `NM:i:6` says 6 of them
+  are mismatches. There are no insertions or deletions.
 
----
+The CIGAR itself looks fine, so the low MAPQ comes from somewhere else. The
+`XA` tag shows the read also fits at position 42,681, about 6 kb away, with
+exactly the same CIGAR and only one more mismatch (7 instead of 6). The
+alignment scores are almost the same (AS = 210 vs XS = 205). The read could
+come from either copy of this repeated sequence, so bwa gives it a MAPQ of
+only 5. That corresponds to roughly a 30% chance that the position is wrong.
+Its mate is unmapped (FLAG bit 0x8), so the pair can't help decide either.
 
-## Question 2 — Hamming distance
+## Question 2: Hamming distance
 
-### Source code (`src/q2_hamming.py`)
+### Source code
 
 ```python
 @@src/q2_hamming.py@@
 ```
 
-The script compares the two sequences position by position and counts the
-mismatches. It raises an error if the lengths differ. Check: the Rosalind
-example (`GAGCCTACTAACGGGAT` / `CATCGTAATGACGGCCT`) gives 7.
+`read_fasta` collects the sequence lines under each `>` header into one string.
+`hamming` walks along both sequences together and counts the positions where
+the letters differ.
 
 ### Output on `data/Q2/input.fa`
 
@@ -212,120 +166,109 @@ $ python3 src/q2_hamming.py data/Q2/input.fa
 79
 ```
 
-**Answer: the Hamming distance is 79.** Both sequences (`Sequence_1`, `Sequence_2`) are 500 bp long, and they differ at 79 of the 500 positions.
+The Hamming distance is **79**. Both sequences are 500 bp.
 
----
+## Question 3: Edit distance
 
-## Question 3 — Edit distance
-
-### Source code (`src/q3_edit_distance.py`)
+### Source code
 
 ```python
 @@src/q3_edit_distance.py@@
 ```
 
-### How the distance matrix is populated
+### How I populate the distance matrix
 
-`D` has `len(s)+1` rows and `len(t)+1` columns. `D(i, j)` is the edit distance
-between the first `i` symbols of `s` and the first `j` symbols of `t`.
+I make a matrix `D` with `len(s) + 1` rows and `len(t) + 1` columns.
+`D[i][j]` is the edit distance between the first `i` letters of `s` and the
+first `j` letters of `t`.
 
-1. **Initial values.** `D(0,0) = 0`. `D(i,0) = i`: turning `s[:i]` into the empty
-   string takes `i` deletions. `D(0,j) = j`: building `t[:j]` from nothing takes
-   `j` insertions.
-2. **Recurrence.** I fill row by row, left to right. That way, when I compute
-   cell `(i, j)`, the three cells it depends on (up, left and up-left) are
-   already filled:
+1. **First row and column.** `D[0][0] = 0`. `D[i][0] = i`, because turning `i`
+   letters into an empty string takes `i` deletions. `D[0][j] = j`, because
+   building `j` letters from nothing takes `j` insertions.
+2. **The other cells.** I fill the matrix row by row, left to right. Each cell
+   only needs the cell above it, the cell to its left, and the cell diagonally
+   up-left, and those are always filled already. The last step of turning
+   `s[:i]` into `t[:j]` has to be one of three things:
+   - delete `s[i]`: cost `D[i-1][j] + 1`
+   - insert `t[j]`: cost `D[i][j-1] + 1`
+   - line up `s[i]` with `t[j]`: cost `D[i-1][j-1]`, plus 1 if the letters
+     are different (a substitution)
 
-   ```
-   D(i,j) = min( D(i-1,j)   + 1,                  # delete s_i
-                 D(i,j-1)   + 1,                  # insert t_j
-                 D(i-1,j-1) + [s_i != t_j] )      # match (cost 0) or substitute (cost 1)
-   ```
-   The optimal alignment of `s[:i]` and `t[:j]` must end in one of these three
-   ways, so the smallest of the three costs is the answer for that cell.
-3. **Result.** The edit distance is `D(len(s), len(t))`, the bottom-right cell.
+   I take the smallest of the three.
+3. **The answer** is the bottom-right cell, `D[len(s)][len(t)]`.
 
-Row `i` only depends on row `i-1`, so the code keeps just two rows in memory.
-Run time is still O(|s|·|t|), but memory drops to O(|t|). That matters for
-long input sequences. Check: `PLEASANTLY`/`MEANLY` gives 5, the textbook value.
-
-### Output
+### Output on `data/Q2/input.fa`, compared with Question 2
 
 ```
 $ python3 src/q3_edit_distance.py data/Q2/input.fa
 7
+```
+
+The edit distance is **7**, much smaller than the Hamming distance of **79**.
+To see why, I lined the two sequences up and found these 7 edits (positions
+in the first sequence):
+
+| Position | Edit | Cost |
+|---|---|---|
+| 159 | C changed to G | 1 |
+| after 200 | `GC` inserted | 2 |
+| 301–302 | `AA` deleted | 2 |
+| 435 | C changed to A | 1 |
+| 440 | A changed to G | 1 |
+| | **Total** | **7** |
+
+The insertion after position 200 pushes everything after it two places to
+the right, and the deletion at 301–302 pushes it back. Hamming distance can
+only compare position 1 with position 1, position 2 with position 2, and so
+on, so it sees that whole shifted stretch of about 100 bases as mismatches:
+76 of them, plus the 3 real substitutions, gives 79. Edit distance can
+insert and delete, so it charges only 2 + 2 for the shift. In general the
+edit distance can never be bigger than the Hamming distance, because
+substitutions alone are one possible way to edit one sequence into the other.
+
+### Output on `data/Q3/input.fa`
+
+```
 $ python3 src/q3_edit_distance.py data/Q3/input.fa
 1704
 ```
 
-**Answer for `data/Q3/input.fa`: the edit distance is 1704.** The file holds
-two hepatitis B virus genomes: X02763.1 (serotype adw2, 3,221 bp) and
-NC_003977.2 (strain ayw, 3,182 bp). Computing it fills a 3,222 × 3,183 matrix,
-about 10 million cells, which takes about 1.5 s.
+The edit distance is **1704**. The file holds two hepatitis B virus genomes:
+X02763.1 (3,221 bp) and NC_003977.2 (3,182 bp).
 
-1704 is much higher than the true difference between the two viruses. The HBV
-genome is circular, and the two records start at different points of the
-circle: the first 30 bases of X02763.1 appear at position 1,815 of
-NC_003977.2. Edit distance compares the strings as linear sequences, so it has
-to delete a large block at one end and insert it again at the other end. When
-I rotate NC_003977.2 so that both start at the same base, the edit distance
-drops to **335**, about 10% of the genome. That is roughly what you would
-expect between two different HBV strains. The 39 bp length difference
-(3,221 vs 3,182) is part of those 335 edits.
+1704 seemed too high for two strains of the same virus, so I looked closer.
+The HBV genome is circular, and the two records start at different points
+on the circle: the start of X02763.1 appears at position 1,815 of
+NC_003977.2. When I rotated NC_003977.2 so both start at the same base, the
+edit distance dropped to **335**, about 10% of the genome, which is more
+like what I'd expect between two strains.
 
-**Comparison with Q2:** On `data/Q2/input.fa` the edit distance is **7**, but
-the Hamming distance is **79**. The Hamming distance is one valid way to edit
-`s` into `t`: substitutions only, no gaps. So the edit distance can never be
-larger (`edit ≤ Hamming`). Here it is much smaller because the two sequences
-differ by a few insertions and deletions, which Hamming distance cannot model.
-One optimal set of 7 edits (positions in `Sequence_1`, 1-based):
+## Question 4: BWT encoder and decoder
 
-| position in s | edit | cost |
-|---|---|---|
-| 159 | substitute C → G | 1 |
-| after 200 | insert `GC` | 2 |
-| 301–302 | delete `AA` | 2 |
-| 435 | substitute C → A | 1 |
-| 440 | substitute A → G | 1 |
-| | **total** | **7** |
-
-The 2-base insertion after position 200 shifts every later base of `t` two
-places to the right. The 2-base deletion at 301–302 shifts them back. Between
-the two, about 100 positions are compared out of register. Hamming distance
-counts most of them as mismatches: 79 = the 3 real substitutions plus 76
-mismatches caused by the shift. Edit distance aligns around the gap and
-charges only 2 + 2 for the indels.
-
----
-
-## Question 4 — BWT encoder and decoder
-
-### Source code (`src/bwt.py`, encoder and decoder)
+### Source code (encoder and decoder)
 
 ```python
 @@src/bwt.py@@
 ```
 
-### 4(a) Encoder
+### 4(a) The BWT encoder
 
-I append `$` (sorts before A, C, G, T) to the sequence. The BWT is the last
-column of the sorted list of all rotations. Sorting rotations of a
-`$`-terminated string is the same as sorting its suffixes, so the code builds
-a suffix array by prefix doubling. That needs O(n) memory, not the n² of a full
-rotation matrix, so whole-genome inputs work. The last-column character of
-the rotation starting at `i` is `text[i-1]`. Check: `BANANA` → `ANNB$AA`.
-Random DNA strings match a brute-force sort of all rotations.
+To encode, I add `$` to the end of the sequence, sort all its rotations, and
+take the last letter of each rotation. Sorting the rotations is the same as
+sorting the suffixes, so `suffix_array` sorts the suffix start positions
+instead of building every rotation. That keeps memory low for the 30 kb genome.
+
+**Output on `data/Q4/input1.fa`:**
 
 ```
 $ python3 src/bwt.py encode data/Q4/input1.fa
 TC$GAATCCGG
-$ python3 src/bwt.py encode data/Q4/input2.fa | cut -c1-50
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACTGTCTTCTTTCCTTGG
 ```
 
-**input1** (`ACGTGCACGT`, 10 bp). The sorted rotations of `ACGTGCACGT$` are:
+To check it by hand, here are the sorted rotations of `ACGTGCACGT$`. Reading
+the last column from top to bottom gives `TC$GAATCCGG`.
 
-| row | rotation | last column |
+| Row | Rotation | Last letter |
 |---|---|---|
 | 0 | `$ACGTGCACGT` | T |
 | 1 | `ACGT$ACGTGC` | C |
@@ -339,149 +282,133 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACTGTCTTCTTTCCTTGG
 | 9 | `T$ACGTGCACG` | G |
 | 10 | `TGCACGT$ACG` | G |
 
-Reading the last column top to bottom gives **BWT = `TC$GAATCCGG`**.
+**Output on `data/Q4/input2.fa` (first 50 symbols):**
 
-**input2** is the SARS-CoV-2 reference genome (NC_045512.2, 29,903 bp). The
-first 50 BWT symbols are `AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACTGTCTTCTTTCCTTGG`.
+```
+$ python3 src/bwt.py encode data/Q4/input2.fa | cut -c1-50
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACTGTCTTCTTTCCTTGG
+```
 
-**What I find:** the BWT starts with a run of **33 A's**. The genome ends with
-a 33-nt poly-A tail (`…GAATGAC` followed by 33 `A`). In the sorted rotation
-matrix, row 0 is the rotation starting with `$`, and its last character is the
-final base of the genome, an A. The rows right after it start with `A$`,
-`AA$`, `AAA$`, …, i.e. the suffixes inside the poly-A tail. Each of those is
-preceded by another A, so all of them put an A in the last column. Row 33
-(`AAA…A$`, the whole tail) is preceded by the C before the tail, which is
-where the run ends.
+**What I find:** input2 is the SARS-CoV-2 genome, and its BWT starts with
+33 A's in a row. That's because the genome ends with a poly-A tail of 33 A's.
+After the `$` row, the next rotations in sorted order are `A$…`, `AA$…`,
+`AAA$…` and so on, all starting inside that tail. Each of them is preceded by
+another A, so their last letters are all A. The run stops at the rotation
+that starts with the whole tail, which is preceded by a C.
 
-This is the general property of the BWT: rotations that start with the same
-context sort next to each other, and the same context tends to be preceded by
-the same base. So the BWT groups identical symbols into runs. Over the whole
-input2 BWT there are 21,518 runs for 29,904 symbols (longest run 33). This is
-why the BWT compresses well with run-length encoding. The BWT holds exactly
-the same symbols as the input plus one `$`, only reordered, which is what
-makes it reversible (4b) and searchable (Q5).
+This is the key property of the BWT. Rotations that start with the same
+letters end up next to each other, and they are often preceded by the same
+letter too. So the BWT groups identical letters into runs. That is why it
+compresses well, and why it is useful for searching.
 
-### 4(b) Decoder
+### 4(b) The BWT decoder
 
-The decoder uses the **LF mapping**. The first column `F` is `sorted(L)`. The
-k-th occurrence of character `c` in `L` and the k-th occurrence of `c` in `F`
-are the same character of the text. So `LF(i) = C[c] + (number of c in L[:i])`.
-Row 0 of the sorted rotations starts with `$`, so `L[0]` is the last base of
-the sequence. Applying `row = LF(row)` repeatedly walks the text backwards,
-one base per step, and reversing the collected bases gives the original. It
-runs in O(n).
+To decode, I use the LF mapping. The first column of the sorted rotations is
+just the BWT sorted, and the k-th `A` in the last column is the same `A` in
+the text as the k-th `A` in the first column (the same holds for every
+letter). Row 0 starts with `$`, so its last letter is the final base of the
+sequence. From there, following the LF mapping steps backwards through the
+sequence one base at a time.
+
+**Output on `data/Q4/input3.txt`:**
 
 ```
 $ python3 src/bwt.py decode data/Q4/input3.txt
 AGTTGTTGATCTGTGTGAGTCAGACTGCGACAGTTCGAGTCTGAAGCGAGA
-$ python3 src/bwt.py encode data/Q4/input1.fa > results/input1.bwt.txt
-$ python3 src/bwt.py decode results/input1.bwt.txt
+```
+
+**Output on the BWT of `data/Q4/input1.fa`:**
+
+```
+$ python3 src/bwt.py encode data/Q4/input1.fa > input1.bwt.txt
+$ python3 src/bwt.py decode input1.bwt.txt
 ACGTGCACGT
 ```
 
-**input3:** the BWT string `AGGGGGCAGGC$GTAGGTTATATCACTCTTAAATTATAGTGACGTCGCTGGG`
-(52 symbols) decodes to the 51 bp sequence
-**`AGTTGTTGATCTGTGTGAGTCAGACTGCGACAGTTCGAGTCTGAAGCGAGA`**. Encoding that
-sequence again gives back exactly the input3 string.
+**Yes, it is the same as the original sequence** (`ACGTGCACGT`). The BWT is
+fully reversible because the `$` marks where the sequence ends. As an extra
+check, I encoded the decoded input3 sequence again and got back exactly the
+input3 string.
 
-**Is it the same as the original?** **Yes.** Decoding `TC$GAATCCGG` gives
-`ACGTGCACGT`, which is identical to the sequence in `data/Q4/input1.fa`
-(`run_all.sh` prints `identical: True`).
-The BWT can be inverted exactly because the `$` marker fixes where the text ends.
-I also tested encode→decode on 300 random strings and one random 200 kb
-string, and every one came back unchanged.
+## Question 5: Search with BWT
 
----
+I chose to write code, reusing `read_fasta` and `bwt_encode` from Question 4.
 
-## Question 5 — Search with BWT (FM-index)
-
-### Source code (`src/q5_fm_search.py`, reuses `bwt_encode` from Q4)
+### Source code
 
 ```python
 @@src/q5_fm_search.py@@
 ```
 
-### Method
+How it works:
 
-* `C[c]` = number of symbols in `t$` that are smaller than `c`
-  (`$ < A < C < G < T`). It is the row where the rows starting with `c` begin
-  in the sorted rotation matrix.
-* `Occ(c, k)` = number of times `c` appears in `t'[0..k-1]`, the first `k`
-  symbols of the BWT. It is built as cumulative counts with `n+1` rows.
-* **Backward search.** Start with the interval of all rows `[lo, hi) = [0, n)`
-  and process the motif from its **last** character to its first:
-  `lo ← C[c] + Occ(c, lo)`, `hi ← C[c] + Occ(c, hi)`. After every step,
-  `[lo, hi)` holds exactly the rows whose rotations start with the suffix of
-  the motif read so far. When the whole motif is processed, the number of
-  occurrences is `hi − lo`. If the interval becomes empty, the count is 0.
-  Each character costs O(1), so a search takes O(|s|) whatever the size of the text.
+- `C[c]` counts how many letters in the text are smaller than `c`
+  (`$ < A < C < G < T`). It is the row where the rotations starting with `c`
+  begin.
+- `Occ[c][k]` counts how many times `c` appears in the first `k` letters of
+  the BWT.
+- **Backward search** starts with all rows, `[0, n)`, and reads the motif from
+  its *last* letter to its first. For each letter `c` it updates the range to
+  `lo = C[c] + Occ[c][lo]` and `hi = C[c] + Occ[c][hi]`. After each step, the
+  range holds exactly the rotations that start with the part of the motif read
+  so far. At the end, the number of matches is `hi − lo`.
 
-Check: the counts match a brute-force overlapping regex count on 300 random
-strings. On `ACGTACGTTACGTAACG` the trace is `T:[14,18) → G:[11,14) → C:[7,10) → A:[3,6)`, which gives 3.
-
-### Output on {data/Q4/input1.fa, s = "ACGT"} (BWT, C, Occ and search steps)
+### Output on {path: `data/Q4/input1.fa`, s: "ACGT"}
 
 ```
-@@results/q5_output.txt:1-30@@
+@@results/q5_output.txt:1-22@@
 ```
 
-**Answer: `ACGT` occurs 2 times in input1.** By hand, the steps are:
+Step by step, using the C and Occ tables above:
 
-1. Start with all rows `[0, 11)`.
-2. `T`: `lo = C[T] + Occ(T,0) = 9 + 0 = 9`, `hi = C[T] + Occ(T,11) = 9 + 2 = 11` → `[9, 11)`, the rows starting with `T`.
-3. `G`: `lo = 6 + Occ(G,9) = 6 + 1 = 7`, `hi = 6 + Occ(G,11) = 6 + 3 = 9` → `[7, 9)`, the rows starting with `GT`.
-4. `C`: `lo = 3 + Occ(C,7) = 3 + 1 = 4`, `hi = 3 + Occ(C,9) = 3 + 3 = 6` → `[4, 6)`, the rows starting with `CGT`.
-5. `A`: `lo = 1 + Occ(A,4) = 1 + 0 = 1`, `hi = 1 + Occ(A,6) = 1 + 2 = 3` → `[1, 3)`, the rows starting with `ACGT`.
+| Letter | lo | hi | Rows that start with |
+|---|---|---|---|
+| start | 0 | 11 | anything |
+| T | C[T] + Occ[T][0] = 9 + 0 = **9** | C[T] + Occ[T][11] = 9 + 2 = **11** | `T` |
+| G | C[G] + Occ[G][9] = 6 + 1 = **7** | C[G] + Occ[G][11] = 6 + 3 = **9** | `GT` |
+| C | C[C] + Occ[C][7] = 3 + 1 = **4** | C[C] + Occ[C][9] = 3 + 3 = **6** | `CGT` |
+| A | C[A] + Occ[A][4] = 1 + 0 = **1** | C[A] + Occ[A][6] = 1 + 2 = **3** | `ACGT` |
 
-`hi − lo = 3 − 1 = 2`. Rows 1 and 2 in the rotation table of Q4(a) are
-`ACGT$ACGTGC` and `ACGTGCACGT$`, i.e. the matches at positions 7 and 1 of
-`ACGTGCACGT`.
+**ACGT occurs 3 − 1 = 2 times.** Rows 1 and 2 in the rotation table of 4(a)
+are the two matches, at positions 1 and 7 of `ACGTGCACGT`.
 
-### Output on {data/Q4/input2.fa, s = "ACGT"}
-
-```
-@@results/q5_output.txt:32-45@@
-   ...   (rows 5-29 are all A as well; full output in results/q5_output.txt)
-@@results/q5_output.txt:71-79@@
-```
-
-(For the long input2 the script prints only the BWT's first 200 symbols and
-the first 30 rows of the `Occ` matrix plus its final row. The full matrix has
-29,905 rows.)
-
-**Answer: `ACGT` occurs 64 times in the SARS-CoV-2 genome.** A direct scan
-of the sequence for overlapping matches also gives 64.
-
----
-
-## Question 6 — Variant calling with Bayes' theorem
-
-### Model
-
-The reference base is A, and a read reports T. Each read is independent and
-has a 1% misclassification rate `e`. The probability that one read shows T
-under each genotype `G`:
-
-| G | P(read = T \| G) |
-|---|---|
-| AA | e = 0.01 (an A misread as T) |
-| AT | ½(1−e) + ½e = 0.5 |
-| TT | 1 − e = 0.99 |
-
-The number of T reads `k` out of `n` follows a binomial distribution:
-`P(D | G) = C(n,k) p_G^k (1−p_G)^(n−k)`. By Bayes' theorem:
+### Output on {path: `data/Q4/input2.fa`, s: "ACGT"}
 
 ```
-P(G | D) = P(D | G) P(G) / Σ_G' P(D | G') P(G'),     P(mutant | D) = P(AT | D) + P(TT | D)
+@@results/q5_output.txt:24-48@@
 ```
 
-Prior for AA = 1 − P(AT) − P(TT).
+(The BWT and Occ table for this 29,903 bp genome are too long to print in
+full, so the script shows only their beginning and the last row.)
 
-### Source code (`src/q6_variant_calling.py`)
+**ACGT occurs 64 times** in the SARS-CoV-2 genome. I checked this by counting
+ACGT directly in the sequence, which also gives 64.
+
+## Question 6: Variant calling
+
+### Source code
 
 ```python
 @@src/q6_variant_calling.py@@
 ```
+
+### Setting up the calculation
+
+The reference base is A and some reads show T. For each genotype I first need
+the chance that a single read shows T:
+
+- **AA:** a T can only come from a sequencing error, so P(T) = 0.01.
+- **AT:** half the reads come from each copy, so
+  P(T) = 0.5 × 0.99 + 0.5 × 0.01 = 0.5.
+- **TT:** every read should be T unless there's an error, so P(T) = 0.99.
+
+The reads are independent, so the chance of seeing k T's out of n reads is
+binomial: `binom.pmf(k, n, P(T))`. Bayes' theorem then gives:
+
+P(genotype | reads) = P(reads | genotype) × P(genotype) / P(reads)
+
+where P(reads) is the sum of P(reads | genotype) × P(genotype) over all three
+genotypes. The patient is a mutant if the genotype is AT or TT.
 
 ### Output
 
@@ -489,45 +416,51 @@ Prior for AA = 1 − P(AT) − P(TT).
 @@results/q6_output.txt@@
 ```
 
-### 6(a) 4 A + 1 T out of 5 reads; priors AT = 2 %, TT = 0.1 %, AA = 97.9 %
+### 6(a) 4 A's and 1 T out of 5 reads
 
-| G | likelihood P(D\|G) | prior | likelihood × prior | posterior |
-|---|---|---|---|---|
-| AA | C(5,1)(0.01)(0.99)⁴ = 0.04803 | 0.979 | 0.04702 | **0.9377** |
-| AT | C(5,1)(0.5)⁵ = 0.15625 | 0.02 | 0.003125 | **0.0623** |
-| TT | C(5,1)(0.99)(0.01)⁴ = 4.95×10⁻⁸ | 0.001 | 4.95×10⁻¹¹ | ≈ 9.9×10⁻¹⁰ |
+Priors: AT = 0.02, TT = 0.001, so AA = 1 − 0.02 − 0.001 = 0.979.
 
-Evidence P(D) = 0.05015. **P(mutant) = P(AT) + P(TT) ≈ 0.0623 (6.2 %)**:
-almost all of that is heterozygous, and P(TT) is about 10⁻⁹. One T in five reads is
-three times more likely under AT than under AA (0.156 vs 0.048). But AA
-is 49× more likely a priori, so the single T is best explained as a
-sequencing error. The patient is most likely **AA** (93.8 %).
-
-### 6(b) 24 A + 6 T out of 30 reads, same priors
-
-| G | likelihood | likelihood × prior | posterior |
+| Genotype | P(reads \| genotype) | × prior | P(genotype \| reads) |
 |---|---|---|---|
-| AA | C(30,6)(0.01)⁶(0.99)²⁴ = 4.665×10⁻⁷ | 4.567×10⁻⁷ | 0.0397 |
-| AT | C(30,6)(0.5)³⁰ = 5.530×10⁻⁴ | 1.106×10⁻⁵ | **0.9603** |
-| TT | C(30,6)(0.99)⁶(0.01)²⁴ = 5.59×10⁻⁴³ | 5.59×10⁻⁴⁶ | ≈ 5×10⁻⁴¹ |
+| AA | 5 × 0.01 × 0.99⁴ = 0.04803 | × 0.979 = 0.04702 | 0.9377 |
+| AT | 5 × 0.5⁵ = 0.15625 | × 0.02 = 0.003125 | 0.0623 |
+| TT | 5 × 0.99 × 0.01⁴ = 4.95 × 10⁻⁸ | × 0.001 = 4.95 × 10⁻¹¹ | ≈ 0 |
+| **Sum** | | **0.05015** | |
 
-**P(mutant) ≈ 0.960 (96.0 %)**, essentially all of it heterozygous (AT).
-With 30 reads, six T's are very unlikely to come from 1% errors: we would
-expect only 0.3 erroneous T's. The likelihood ratio AT:AA is now about 1,185.
-That is enough to outweigh the 49:1 prior in favour of AA.
+**The chance that the patient is a mutant is about 6.2%** (almost all of it
+heterozygous AT). One T in five reads fits AT about three times better than
+AA, but AA is about 49 times more common to begin with. So the single T is
+most likely just a sequencing error.
 
-### 6(c) Same 24 A + 6 T, but a rarely-mutated site: AT = 0.05 %, TT = 0.001 %, AA = 99.949 %
+### 6(b) 24 A's and 6 T's out of 30 reads
 
-| G | likelihood | prior | likelihood × prior | posterior |
-|---|---|---|---|---|
-| AA | 4.665×10⁻⁷ | 0.99949 | 4.663×10⁻⁷ | 0.6278 |
-| AT | 5.530×10⁻⁴ | 0.0005 | 2.765×10⁻⁷ | **0.3722** |
-| TT | 5.59×10⁻⁴³ | 0.00001 | 5.59×10⁻⁴⁸ | ≈ 7.5×10⁻⁴² |
+Same priors as (a).
 
-**P(mutant) ≈ 0.372 (37.2 %)**. The data are exactly the same as in (b), but
-the prior odds against a heterozygote are now about 2,000:1, not 49:1. That
-outweighs the likelihood ratio of about 1,185, so AA (error-only) is
-now the more probable explanation. The prior matters a lot for rare variants:
-the same read evidence can support a confident variant call at one site and
-a likely error at another. To call a variant here with confidence we would
-need more depth or higher-quality reads.
+| Genotype | P(reads \| genotype) | × prior | P(genotype \| reads) |
+|---|---|---|---|
+| AA | C(30,6) × 0.01⁶ × 0.99²⁴ = 4.665 × 10⁻⁷ | 4.567 × 10⁻⁷ | 0.0397 |
+| AT | C(30,6) × 0.5³⁰ = 5.530 × 10⁻⁴ | 1.106 × 10⁻⁵ | 0.9603 |
+| TT | C(30,6) × 0.99⁶ × 0.01²⁴ ≈ 5.6 × 10⁻⁴³ | ≈ 0 | ≈ 0 |
+
+**The chance that the patient is a mutant is now about 96%**, again almost
+all heterozygous. With 30 reads and a 1% error rate, we'd only expect about
+0.3 wrong T's, so seeing 6 is very unlikely to be just errors. The data now
+favour AT over AA by about 1,185 to 1, which easily beats the 49 to 1 prior.
+
+### 6(c) Same reads, but at a site where mutations are rare
+
+Priors: AT = 0.0005, TT = 0.00001, so AA = 0.99949.
+
+| Genotype | P(reads \| genotype) | × prior | P(genotype \| reads) |
+|---|---|---|---|
+| AA | 4.665 × 10⁻⁷ | 4.663 × 10⁻⁷ | 0.6278 |
+| AT | 5.530 × 10⁻⁴ | 2.765 × 10⁻⁷ | 0.3722 |
+| TT | ≈ 5.6 × 10⁻⁴³ | ≈ 0 | ≈ 0 |
+
+**The chance that the patient is a mutant drops to about 37%.** The reads are
+exactly the same as in (b), but at this site AA is about 2,000 times more
+common than AT to begin with. That is more than the 1,185 to 1 the reads
+give in favour of AT, so AA (errors only) is now slightly more likely. This
+shows how much the prior matters for rare variants: the same reads can mean
+a confident call at one site and an uncertain one at another. To be sure
+here, we would need more reads.

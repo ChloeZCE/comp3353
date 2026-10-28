@@ -1,21 +1,31 @@
-"""Q2: Hamming distance between the two equal-length sequences in a FASTA file.
-
-Usage:
-    python q2_hamming.py <fasta_path>
-"""
 import sys
 
-from fasta import read_fasta
+
+def read_fasta(path):
+    seqs = []
+    seq = ""
+    for line in open(path):
+        line = line.strip()
+        if line.startswith(">"):
+            if seq:
+                seqs.append(seq)
+            seq = ""
+        else:
+            seq += line.upper()
+    if seq:
+        seqs.append(seq)
+    return seqs
 
 
 def hamming(s, t):
     if len(s) != len(t):
-        raise ValueError(f"sequences differ in length ({len(s)} vs {len(t)})")
-    return sum(a != b for a, b in zip(s, t))
+        raise ValueError("the two sequences must have the same length")
+    count = 0
+    for a, b in zip(s, t):
+        if a != b:
+            count += 1
+    return count
 
 
-if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        sys.exit("Usage: python q2_hamming.py <fasta_path>")
-    (_, s), (_, t) = read_fasta(sys.argv[1])[:2]
-    print(hamming(s, t))
+s, t = read_fasta(sys.argv[1])[:2]
+print(hamming(s, t))

@@ -1,9 +1,2 @@
-$ python3 bwt.py decode ../data/Q4/input3.txt
 AGTTGTTGATCTGTGTGAGTCAGACTGCGACAGTTCGAGTCTGAAGCGAGA
-
-$ python3 bwt.py decode ../results/input1.bwt.txt
 ACGTGCACGT
-
-original input1.fa sequence:
-ACGTGCACGT
-identical: True
