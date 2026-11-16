@@ -1,7 +1,7 @@
 # COMP3353 Bioinformatics — Assignment 3: HMMs, MSA, omics data analysis
 
-**Name:** Zheng Choi I
-**University Number:** 3035987788
+**Name:** Zheng Choi I  
+**University Number:** 3035987788  
 **Email:** u3598778@connect.hku.hk
 
 All three questions are answered (only the best two count). The code is in
