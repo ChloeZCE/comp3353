@@ -1,0 +1,152 @@
+== Q1 ==
+AnnData object with n_obs × n_vars = 6794880 × 33538
+    var: 'gene_ids', 'feature_types'
+    layers: None (.X)
+X: <class 'scipy.sparse._csr.csr_matrix'> (6794880, 33538)
+obs (barcodes): ['AAACCCAAGAAACACT-1', 'AAACCCAAGAAACCAT-1', 'AAACCCAAGAAACCCA-1'] ...
+                    gene_ids    feature_types
+MIR1302-2HG  ENSG00000243485  Gene Expression
+FAM138A      ENSG00000237613  Gene Expression
+OR4F5        ENSG00000186092  Gene Expression
+AL627309.1   ENSG00000238009  Gene Expression
+AL627309.3   ENSG00000239945  Gene Expression
+Unique barcodes: 6794880  Genes: 33538
+
+== Q2 ==
+                    n_genes_by_counts  total_counts  total_counts_mt  pct_counts_mt
+AAACCCAAGAAACACT-1                  0           0.0              0.0            NaN
+AAACCCAAGAAACCAT-1                  0           0.0              0.0            NaN
+AAACCCAAGAAACCCA-1                  0           0.0              0.0            NaN
+AAACCCAAGAAACCCG-1                  0           0.0              0.0            NaN
+AAACCCAAGAAACCTG-1                  0           0.0              0.0            NaN
+AAACCCAAGAAACGAA-1                  0           0.0              0.0            NaN
+AAACCCAAGAAACGTC-1                  0           0.0              0.0            NaN
+AAACCCAAGAAACTAC-1                  0           0.0              0.0            NaN
+AAACCCAAGAAACTCA-1                  8           8.0              1.0           12.5
+AAACCCAAGAAACTGC-1                  0           0.0              0.0            NaN
+Mitochondrial genes: 13
+Barcodes with total_counts > 0  : 234600
+Barcodes with total_counts > 100: 1365
+
+== Q3 ==
+UMI_THR = 500; barcodes kept: 1241
+
+== Q4 ==
+MT_THR = 20%; cells kept: 1130 / 1241
+
+== Q5 ==
+Filtered dimensions: (1130, 12519)
+
+== Q6 ==
+resolution 0.2: 7 clusters
+resolution 0.5: 12 clusters
+resolution 0.8: 13 clusters
+resolution 1.2: 15 clusters
+Chosen LEIDEN_RES = 0.8
+leiden_clusters
+0     320
+1     179
+2     177
+3     133
+4      79
+5      56
+6      52
+7      49
+8      28
+9      28
+10     13
+11      8
+12      8
+
+== Q7 ==
+  group    names     scores  logfoldchanges          pvals      pvals_adj
+0     0   S100A8  25.942863        9.173420  2.188755e-148  1.490256e-144
+1     0   S100A9  25.939627        9.040249  2.380791e-148  1.490256e-144
+2     0      FOS  25.775543        3.533458  1.667575e-146  6.958792e-143
+3     0      LYZ  25.650105        8.305386  4.216676e-145  1.319714e-141
+4     0     VCAN  25.568771        7.577640  3.395755e-144  8.502291e-141
+5     0     CTSS  25.478537        5.050526  3.409622e-143  7.114175e-140
+6     0    DUSP1  25.414602        3.533880  1.739175e-142  3.110390e-139
+7     0     FCN1  25.312328        6.855164  2.336970e-141  3.657066e-138
+8     0  S100A12  25.229074        9.058413  1.922205e-140  2.673788e-137
+9     0     MNDA  25.145010        6.451785  1.602480e-139  2.006145e-136
+
+Top up-regulated markers per cluster:
+  cluster 0: S100A8, S100A9, FOS, LYZ, VCAN, CTSS, DUSP1, FCN1
+  cluster 1: TPT1, EEF1A1, LDHB, EEF1B2, TCF7, NPM1, SARAF, PIK3IP1
+  cluster 2: LDHB, TRAC, IL7R, IL32, LTB, CD3E, CD3D, CD2
+  cluster 3: IGHD, CD37, IGHM, CD79A, MS4A1, CD79B, CD74, LINC00926
+  cluster 4: GZMK, KLRB1, KLRG1, GZMA, NKG7, CTSW, IL32, CCL5
+  cluster 5: KLRD1, GNLY, NKG7, CTSW, KLRF1, CD7, GZMA, PRF1
+  cluster 6: CCL5, GZMM, NKG7, B2M, CTSW, IL32, CD8A, GZMA
+  cluster 7: BANK1, MS4A1, IGKC, CD79A, HLA-DQA1, CD79B, CD37, HLA-DPB1
+  cluster 8: LST1, AIF1, FCGR3A, COTL1, SMIM25, MS4A7, HES4, SAT1
+  cluster 9: CST3, HLA-DRB1, HLA-DRB5, CD74, HLA-DPA1, HLA-DPB1, HLA-DRA, S100A10
+  cluster 10: PPBP, TAGLN2, PF4, HIST1H2AC, PGRMC1, NRGN, CDKN2D, OAZ1
+  cluster 11: LILRA4, IL3RA, PPP1R14B, TCF4, SERPINF1, UGCG, IRF7, SMPD3
+  cluster 12: IGKC, SUB1, JCHAIN, TNFRSF17, MZB1, PPIB, ITM2C, SSR4
+Dropped 1410 genes with |LFC| > 15 (zero-expression artefacts) from volcano plot
+
+Cluster 3 top up-regulated genes (|LFC|>1.0, padj<0.05):
+    names    scores  logfoldchanges    pvals_adj
+     IGHD 18.287504        8.650855 1.302868e-70
+     CD37 18.219898        2.750926 2.246017e-70
+     IGHM 18.168840        8.222034 3.801705e-70
+    CD79A 17.909733        6.609355 3.098766e-68
+    MS4A1 17.807476        6.073802 1.548270e-67
+    CD79B 17.288977        5.283802 1.188371e-63
+     CD74 17.199165        4.030504 4.817785e-63
+LINC00926 16.704002        5.962920 1.917935e-59
+    TCL1A 16.578833        9.944152 1.378989e-58
+ HLA-DQA1 15.899804        4.119612 7.957448e-54
+ HLA-DQB1 15.613965        3.640273 6.656313e-52
+ HLA-DRB1 15.320488        3.528662 5.821035e-50
+    BANK1 15.173396        4.863930 4.744627e-49
+  HLA-DRA 15.044266        3.888160 3.142157e-48
+     CD22 14.932532        5.547086 1.490715e-47
+
+== Q8 ==
+leiden_clusters     0     1     2     3     4     5     6     7     8     9    10    11    12
+CAVIN2           0.05  0.01  0.00  0.01  0.01  0.00  0.00  0.00  0.03  0.00  4.50  0.29  0.03
+CCR7             0.00  0.95  0.40  0.40  0.05  0.05  0.15  0.17  0.00  0.00  0.00  0.00  0.00
+CD14             1.84  0.01  0.01  0.01  0.00  0.00  0.00  0.02  0.33  0.50  0.00  0.00  0.00
+CD3D             0.02  1.71  1.75  0.02  1.71  0.04  2.04  0.00  0.00  0.03  0.00  0.00  0.06
+CD79A            0.01  0.03  0.00  2.90  0.01  0.02  0.00  2.69  0.04  0.00  0.00  0.07  2.23
+CD79B            0.04  0.05  0.11  2.22  0.14  0.21  0.00  1.94  0.89  0.08  0.00  0.00  0.57
+CD8A             0.01  0.35  0.07  0.00  0.72  0.34  1.48  0.00  0.00  0.00  0.00  0.00  0.00
+CD8B             0.00  0.46  0.11  0.00  0.23  0.00  1.13  0.00  0.00  0.00  0.00  0.00  0.00
+CST3             2.84  0.04  0.02  0.00  0.03  0.10  0.00  0.00  3.13  3.82  1.75  2.94  0.03
+FCER1A           0.09  0.02  0.01  0.00  0.00  0.00  0.00  0.00  0.00  1.60  0.00  0.73  0.00
+FCGR3A           0.12  0.01  0.00  0.01  0.01  1.58  0.35  0.00  2.83  0.00  0.00  0.00  0.00
+GNLY             0.04  0.01  0.04  0.01  0.54  4.66  1.55  0.00  0.05  0.04  0.00  0.07  0.00
+GZMA             0.01  0.05  0.23  0.03  2.11  2.94  2.12  0.00  0.00  0.00  0.00  0.00  0.00
+GZMK             0.00  0.06  0.21  0.04  2.10  0.44  1.55  0.00  0.00  0.00  0.00  0.00  0.00
+HLA-DPA1         1.84  0.13  0.18  3.09  0.21  0.31  0.68  3.21  3.17  3.86  0.08  2.88  0.85
+HLA-DRA          2.87  0.07  0.11  3.85  0.03  0.15  0.30  3.87  3.20  4.35  0.00  3.51  0.53
+IL3RA            0.03  0.00  0.01  0.01  0.00  0.00  0.00  0.00  0.22  0.09  0.00  2.02  0.06
+IL7R             0.02  1.73  2.32  0.05  2.52  0.10  1.22  0.02  0.00  0.00  0.00  0.00  0.00
+KLRD1            0.02  0.02  0.00  0.01  0.37  2.63  1.09  0.00  0.00  0.00  0.00  0.00  0.00
+LILRA4           0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.03  0.04  0.02  0.00  2.22  0.00
+LYZ              4.89  0.12  0.12  0.10  0.11  0.09  0.18  0.15  2.32  4.50  0.35  0.12  0.08
+MS4A1            0.01  0.00  0.02  2.37  0.00  0.04  0.09  2.41  0.00  0.00  0.00  0.08  0.00
+MS4A7            0.96  0.00  0.00  0.08  0.00  0.00  0.00  0.12  2.35  0.27  0.00  0.00  0.00
+NKG7             0.08  0.04  0.05  0.04  2.54  3.99  2.80  0.00  0.34  0.23  0.00  0.21  0.00
+PPBP             0.11  0.00  0.00  0.03  0.01  0.02  0.02  0.00  0.02  0.07  5.95  0.51  0.00
+PRF1             0.01  0.05  0.13  0.01  1.29  2.61  1.12  0.00  0.00  0.00  0.00  0.00  0.00
+S100A9           5.09  0.08  0.12  0.08  0.15  0.12  0.05  0.05  2.26  2.45  0.85  0.23  0.03
+TCF7             0.02  1.51  1.35  0.11  0.96  0.33  0.93  0.18  0.02  0.06  0.00  0.07  0.03
+TUBB1            0.04  0.00  0.00  0.02  0.00  0.00  0.00  0.00  0.02  0.00  4.41  0.20  0.00
+cell_type
+CD14+ Monocytes                  320
+Naive T cells (CD4/CD8 mixed)    179
+CD4+ Memory T cells              177
+Naive B cells                    133
+GZMK+ CD8+ / MAIT T cells         79
+NK cells                          56
+CD8+ Cytotoxic T cells            52
+Memory B cells                    49
+FCGR3A+ Monocytes                 28
+Conventional DCs                  28
+Platelets                         13
+Plasmacytoid DCs                   8
+Plasma cells                       8

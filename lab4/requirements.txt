@@ -1,0 +1,4 @@
+scanpy==1.13.0
+python-igraph
+leidenalg
+scikit-misc
