@@ -1671,8 +1671,8 @@ overlap of top-10 lists: 9/10 -> ['MALAT1', 'COX6C', 'CLU', 'CST3', 'MT-ND2', 'M
   because the group is larger.
 * **Layer 1 vs cluster 1: 9 of 10 genes are shared** (MALAT1, COX6C, CLU,
   CST3, GFAP, SLC1A2, MT-ND1/2/3); cluster 1 has MGP instead of MT-ND5. The
-  Layer 1 differences are much smaller (log fold change about 0.3–1.4,
-  compared with 3–4 for WM). This makes sense because Layer 1 has few neuron
+  Layer 1 differences are much smaller (log fold change about 0.2–1.6,
+  compared with about 1–4 for WM). This makes sense because Layer 1 has few neuron
   cell bodies and is mainly astrocytes and neuronal processes, so the
   enriched genes are astrocyte genes (GFAP, CLU, CST3, SLC1A2) plus MALAT1
   and mitochondrial genes rather than one strong layer-specific gene. MGP is
@@ -1683,8 +1683,8 @@ overlap of top-10 lists: 9/10 -> ['MALAT1', 'COX6C', 'CLU', 'CST3', 'MT-ND2', 'M
 **Representative markers.** For WM I chose **MBP** (myelin basic protein),
 the top gene in both analyses; on its own it separates WM from the other spots
 almost perfectly (AUROC 0.992). For Layer 1 I chose **MALAT1**, the top
-ground-truth Layer 1 gene and second in cluster 1. It is the best single
-Layer 1 gene, but much weaker (AUROC 0.793). In the plots, MBP is high in the
+ground-truth Layer 1 gene and second in cluster 1. It has the highest AUROC
+of the ten Layer 1 genes, but it is a much weaker marker (AUROC 0.793). In the plots, MBP is high in the
 WM region at the bottom left, with a sharp border to Layer 6. MALAT1 is
 highest along the outer edge of the cortex (top left and the right border),
 where Layer 1 is, but it is also high in the two small bumps on the bottom edge of the
