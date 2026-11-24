@@ -121,3 +121,5 @@ SLC1A2   6.86           0.34  1.04e-09
 overlap of top-10 lists: 9/10 -> ['MALAT1', 'COX6C', 'CLU', 'CST3', 'MT-ND2', 'MT-ND3', 'MT-ND1', 'GFAP', 'SLC1A2']
 
 selected representative markers: WM -> MBP, Layer1 -> MALAT1
+AUROC (WM vs rest): MBP 0.992, PLP1 0.989, CRYAB 0.983, CNP 0.980, GFAP 0.970, MOBP 0.966, TF 0.960, PTGDS 0.959, S100B 0.959, FTH1 0.957
+AUROC (Layer1 vs rest): MALAT1 0.793, COX6C 0.719, CLU 0.712, CST3 0.707, MT-ND2 0.672, MT-ND3 0.670, MT-ND1 0.662, GFAP 0.653, MT-ND5 0.647, SLC1A2 0.638

@@ -4,11 +4,10 @@
 **University Number:** 3035987788  
 **Email:** u3598778@connect.hku.hk
 
-All three questions are answered (only the best two count). The code is in
-Python 3. Each question has one self-contained script in `src/`, and the full
-source is reproduced below. Every number, alignment and figure in this document
-comes from running those scripts on the provided `data/` folder. The raw output
-files are in `results/`.
+I answered all three questions. Each question has one Python 3 script in
+`src/`, and the full code is pasted under each question. All numbers,
+alignments and figures below come from running these scripts on the provided
+`data/` folder (raw outputs are in `results/`).
 
 ```bash
 pip install -r requirements.txt
@@ -23,13 +22,12 @@ python src/q3_spatial.py    # Q3  -> results/q3*
 
 ### Source code (`src/q1_hmm.py`)
 
-The model is the one given in the handout: initial distribution `P(M)=0.1, P(S)=0.9`,
-transitions `0.95/0.05`, and emissions spread evenly over the 8 hydrophobic and 12
-polar amino acids. For example, `e_M(G) = 0.85/8` and `e_S(R) = 0.70/12`.
-Every recursion runs in **natural-log space**. Products become sums, `max`
-becomes `max` of sums, and the forward/backward `sum` becomes
-`scipy.special.logsumexp`. This avoids underflow, because P(x) is about 10^-335
-for bacteriorhodopsin and would be 0 in double precision.
+The parameters are the ones in the handout: `P(M)=0.1, P(S)=0.9`, transitions
+`0.95/0.05`, and each group's emission probability shared equally by its amino
+acids (8 hydrophobic, 12 polar), e.g. `e_M(G) = 0.85/8` and `e_S(R) = 0.70/12`.
+All recursions are done with natural logs: products become sums, and the sums
+in Forward/Backward use `scipy.special.logsumexp`. This is needed because P(x)
+for bacteriorhodopsin is about 10^-335, which is 0 in double precision.
 
 ```python
 """COMP3353 A3 Q1: two-state transmembrane HMM.
@@ -249,8 +247,8 @@ if __name__ == "__main__":
 ### 1a. Viterbi decoding
 
 Recursion: `V_k(t) = e_k(x_t) · max_k' a_{k'→k} V_k'(t−1)`, with
-`V_k(1) = e_k(x_1) P(k)`. A pointer matrix stores the arg-max, and the traceback
-starts from `argmax_k V_k(L)`.
+`V_k(1) = e_k(x_1) P(k)`. The best previous state is stored at each step and the
+path is traced back from `argmax_k V_k(L)`.
 
 **Output: `data/Q1/P02724.fasta` (Glycophorin A, 150 aa)**
 
@@ -290,22 +288,20 @@ SSSSSSSSSSSSSSSSSSSSSS
     M segments (1-based): [(23, 47), (61, 86), (105, 140), (148, 169), (192, 237)]
 ```
 
-Line plots of the decoded state sequences. The top panel shows the Viterbi path
-in blue and the posterior-decoded path dashed in red. The bottom panel shows the
-posterior P(M | x) and marks the hydrophobic residues.
+Line plots of the decoded states (top: Viterbi in blue, posterior decoding
+dashed red; bottom: posterior P(M | x), with hydrophobic residues marked as grey bars):
 
 ![P02724 states](results/q1_P02724_states.png)
 ![P02945 states](results/q1_P02945_states.png)
 
-For glycophorin A (a single-pass membrane protein), the model finds one
-transmembrane segment at residues 94–110. This matches the known single
-transmembrane helix (UniProt annotates residues 92–114). A short hydrophobic
-stretch at residues 5–11 is also labelled M; it lies inside the N-terminal
-signal peptide. For bacteriorhodopsin (a 7-helix protein), the model finds five
-long M segments. Some neighbouring helices are merged into one segment because
-the loops between them are short and contain hydrophobic residues, and the
-sticky 0.95 self-transition makes it costly to leave state M for only a few
-residues.
+Glycophorin A is a single-pass membrane protein, and the model finds one long
+M segment (94–110) in its hydrophobic middle region, `LIIFGVMAGVIGTILLI`. The
+short M segment at 5–11 is the hydrophobic N-terminal signal sequence, which is
+cut off in the mature protein, so it is a false positive of this simple model.
+Bacteriorhodopsin has 7 transmembrane helices, but the model only finds 5 M
+segments. Some helices are joined together because the loops between them are
+short and still fairly hydrophobic, and with a 0.95 self-transition it is
+expensive to leave M for just a few residues.
 
 ### 1b. Forward algorithm
 
@@ -327,19 +323,17 @@ residues.
 | P02724 | -443.6985479990 | 2.014508 × 10^-193 |
 | P02945 | -771.1757678221 | 1.209538 × 10^-335 |
 
-**Comparison with Forward:** the two values are the same. They agree to all
-printed digits; the absolute difference in log-probability is about 2×10⁻¹³,
-which is floating-point rounding. Both algorithms compute the same marginal
-likelihood P(x) = Σ_π P(x, π), summed over every hidden-state path π. They only
-group the sum in opposite directions. Forward sums over path prefixes from left
-to right and ends with Σ_k F_k(L). Backward sums over path suffixes from right
-to left and ends at position 1 with Σ_k P(k)e_k(x₁)B_k(1). More generally,
-Σ_k F_k(t)B_k(t) = P(x) for every t, which is also a useful correctness check.
+**Comparison with Forward:** yes, they are the same (the difference in
+ln P(x) is about 2×10⁻¹³, which is just floating-point rounding). Both
+algorithms compute P(x) = Σ_π P(x, π), the sum over all hidden-state paths π;
+Forward adds up the paths from left to right and Backward from right to left.
+In fact Σ_k F_k(t)B_k(t) = P(x) at every position t. I checked this for both
+proteins and the largest difference over all t was about 2×10⁻¹² in log space.
 
 ### 1d. Posterior decoding
 
-`P_k(t) = F_k(t)B_k(t) / Σ_k' F_k'(t)B_k'(t)`. This is computed in log space, and
-each position is assigned `argmax_k P_k(t)`.
+`P_k(t) = F_k(t)B_k(t) / Σ_k' F_k'(t)B_k'(t)` (computed in log space); each
+position gets the state with the larger posterior.
 
 **Output: P02724**
 
@@ -365,30 +359,22 @@ MMMMSSSSSSSSSSSMMMSSSS
     positions differing from Viterbi: 7 -> [241, 242, 243, 244, 256, 257, 258]
 ```
 
-**Comparison with Viterbi:** the two decodings are almost the same, but not
-identical. For P02724 they differ at 1 position (residue 4 is M in the posterior
-path and S in the Viterbi path). For P02945 they differ at 7 positions: the
-posterior path contains two extra short M segments, at 241–244 and 256–258.
+**Comparison with Viterbi:** they are very similar but not the same. For
+P02724 they differ at 1 position (residue 4: M in posterior decoding, S in
+Viterbi). For P02945 they differ at 7 positions: posterior decoding has two
+extra short M segments at 241–244 and 256–258.
 
-The difference comes from what each method optimizes:
-
-* **Viterbi** returns the single most probable *whole path*,
-  argmax_π P(π | x). Every state switch costs a factor of 0.05, so a short M
-  island adds two switches (0.05² = 0.0025). That penalty is larger than the
-  emission gain from a few hydrophobic residues, so Viterbi stays in S. Its
-  path is always a valid, coherent path.
-* **Posterior decoding** chooses the most likely state *at each position
-  separately*, argmax_k P(π_t = k | x). It sums over all paths, so it maximizes
-  the expected number of correctly labelled positions. In the hydrophobic
-  C-terminal patches of bacteriorhodopsin, P(M | x) goes just above 0.5 (about
-  0.55–0.62 in the plot), so those positions are called M. The resulting
-  sequence of locally best states is not necessarily the best global path, and
-  in general it could even contain transitions with zero probability.
-  Viterbi labels these positions S because no single high-probability path
-  passes through such short M segments.
-
-Where the signal is strong (the main transmembrane helices), both methods agree
-exactly. They disagree only in ambiguous regions where P(M | x) is close to 0.5.
+The reason is that they answer different questions. Viterbi finds the single
+most probable *whole path*. A short M segment needs two state switches, which
+multiply the path probability by 0.05² = 0.0025, and a few hydrophobic residues
+do not make up for that, so Viterbi stays in S. Posterior decoding instead picks
+the most likely state *at each position on its own*, summing over all paths. In
+the hydrophobic patches near the C-terminus of bacteriorhodopsin, P(M | x) is
+only slightly above 0.5 (about 0.55–0.62 in the plot), so these positions are
+called M. Putting these position-wise best states together does not have to give
+the most probable path (in general it can even give a path with zero
+probability). In the clear transmembrane regions the two methods agree exactly;
+they only differ where P(M | x) is close to 0.5.
 
 ---
 
@@ -396,9 +382,9 @@ exactly. They disagree only in ambiguous regions where P(M | x) is close to 0.5.
 
 ### Source code (`src/q2_msa.py`)
 
-Design: a single global DP, `align_profiles(A, B)`, aligns two *profiles*
-(lists of equal-length aligned strings). A single sequence is a profile with
-one row. This one routine therefore gives:
+I wrote one global alignment function, `align_profiles(A, B)`, which aligns
+two *profiles* (lists of already-aligned strings of equal length). A single
+sequence is just a profile with one row, so the same function covers:
 
 * (a) sequence-to-sequence alignment (|A| = |B| = 1), which is exactly
   Needleman–Wunsch with s = +3/−3/−2;
@@ -407,15 +393,14 @@ one row. This one routine therefore gives:
 * (d) profile-to-profile alignment, using
   S(C_i, C_j) = 1/(|C_i||C_j|) Σ s(a, b).
 
-When the DP places a gap in one profile, an all-gap column is inserted into
-every sequence of that profile. That column is scored against the other
-profile's column as the average of s(−, b), so existing gaps in the other
-profile score 0 and residues score −2. The first row and column hold
-cumulative gap penalties. Traceback starts at the bottom-right corner and
-continues to (0, 0). Ties are broken in the order diagonal > up > left.
-Column-pair scores are computed in one step with character-count matrices
-(`counts_A · M · counts_Bᵀ / (|A||B|)`), so the 29-sequence hemoglobin MSA runs
-in a few seconds.
+A gap in one profile means a gap column is added to every sequence in that
+profile. It is scored against the other column as the average of s(−, b), so
+existing gaps score 0 and residues score −2. The first row and column hold
+cumulative gap penalties, the traceback goes from the bottom-right corner back
+to (0, 0), and ties are broken as diagonal > up > left. To keep it fast, all
+column-pair scores are computed at once from character counts
+(`counts_A · M · counts_Bᵀ / (|A||B|)`); the whole Q2 script runs in about
+13 seconds.
 
 ```python
 """COMP3353 A3 Q2: simplified progressive multiple sequence alignment.
@@ -756,20 +741,18 @@ S6  M--TEFKAGSAKKGATLF--KTRCLQCHTVEKGGPHKVGPNLHGIFGRHSGQAEGYSYTDANIK-KNVLWDE-NNM
 
 (The two lines in each block have identical lengths: 105 for S1/S4 and 117 for S1/S6.)
 
-S1 (human) and S4 (chicken) have no indels: 92 identical positions and 13
-substitutions give 92 × 3 − 13 × 3 = **237**. S1/S6 has 73 identities, 24
-mismatches and 20 gap positions: 219 − 72 − 40 = **107**. S1 and S6 (yeast) are much more
-divergent, so the alignment contains many gaps. This is a property of the
-specified scoring scheme. Gaps have a linear penalty of −2 with no opening
-cost, which is cheap compared with a mismatch (−3) and a match (+3). The DP
-therefore readily adds a few scattered indels to shift the sequences and gain
-extra +3 identities, instead of keeping a contiguous block of mismatches.
-Affine gap penalties would merge these into fewer, longer gaps.
+Check of the scores: S1 (human) vs S4 (chicken) has no gaps, 92 matches and
+13 mismatches, so 92 × 3 − 13 × 3 = **237**. S1 vs S6 (yeast) has 73 matches,
+24 mismatches and 20 gap positions: 219 − 72 − 40 = **107**. The S1/S6
+alignment has many small gaps because of the scoring scheme: a gap only costs −2
+and there is no gap-opening cost, so it is often worth adding a pair of gaps to
+shift the sequences and gain extra +3 matches. An affine gap penalty would give
+fewer but longer gaps.
 
 ### 2b. Sequence-to-profile alignment
 
-Check against the handout example (profile P1/P2 plus Q). The alignment
-reproduces the expected layout, with no new gap columns:
+First, a test on the example in the handout (profile P1/P2 plus Q). Q is
+aligned without adding any new gap columns, as expected:
 
 ```
 P1  -KTAYIAKQRQISFVKSHFSRQDIL
@@ -794,15 +777,14 @@ S2  MGDVE-K-G--KK---IFIMK--CSQCHTVEKGGKHKTGPNLHGLFGRKTGQAPGYSYTAAN-KNKGITWGEDTLM
 S6  M--TEFKAGSAKKGATLF--KTRCLQCHTVEKGGPHKVGPNLHGIFGRHSGQAEGYSYTDANIK-KNVLWDE-NNMSEYLTNPKKYIPGTKMAFGGLKKEK-DRNDLITYLKKA-CE
 ```
 
-When S6 needed a gap at a profile position, a gap column was inserted into all
-three profile sequences (S1, S4 and S2) together. You can see this, for
-example, in the shared `-K-G--KK---` pattern.
+Whenever S6 needs a gap opposite the profile, the same gap column is added to
+all of S1, S4 and S2 (e.g. the shared `-K-G--KK---` pattern).
 
 ### 2c. Pairwise similarity and guide-tree construction
 
-All 15 pairs were aligned with the 2a algorithm.
-d(x, y) = 1 − (#identical aligned residue positions) / (alignment length), and
-gaps are never counted as identical.
+All 15 pairs were aligned with the 2a algorithm, and
+d(x, y) = 1 − (number of identical positions) / (alignment length), where gap
+positions never count as identical.
 
 ```
 Distance matrix d(x,y) = 1 - identical/alignment length:
@@ -832,17 +814,22 @@ UPGMA merge order (cluster distance = average pairwise distance between members)
 4. `(('S5',), ('S1', 'S2', 'S3', 'S4'))`: add *Drosophila*, d = 0.3280
 5. `(('S6',), ('S5', 'S1', 'S2', 'S3', 'S4'))`: add yeast last, d = 0.3900
 
-The guide tree follows the expected taxonomy:
-((((human, macaque), (horse, chicken)), fly), yeast).
+The tree is ((((human, macaque), (horse, chicken)), fly), yeast). Most of it
+matches the species tree: the two primates join first, then the vertebrates,
+then the fly, and yeast is the outgroup. One part does not: horse should group
+with the primates (both mammals) before chicken, but here horse joins chicken.
+Cytochrome c is very conserved, so the vertebrate distances differ by only one
+or two residues (horse–chicken 0.1048 vs horse–macaque 0.1048 vs horse–human
+0.1143), which is too little to resolve this. A guide tree only needs to give a
+reasonable merge order, so this does not matter much for the MSA.
 
 ### 2d. Progressive multiple sequence alignment
 
-The script follows the UPGMA merge order. At each merge it aligns the two
-clusters' profiles with `align_profiles`. That is sequence–sequence alignment
-for two singletons, sequence–profile alignment when one side is a singleton
-(2b), and profile–profile alignment otherwise. The script also checks that
-removing the gaps from each row gives back the original sequence. The MSAs are
-also saved as FASTA files in `results/q2d_*_msa.fasta`.
+The script goes through the UPGMA merges in order and aligns the two clusters
+with `align_profiles` each time (sequence–sequence, sequence–profile or
+profile–profile, depending on the cluster sizes). As a check, removing the gaps
+from every row gives back the original sequences. The MSAs are also saved as
+FASTA in `results/q2d_*_msa.fasta`.
 
 **Final MSA: `cytochrome_c_unaligned.fa`**
 
@@ -1027,44 +1014,36 @@ HBB_MACNE   -AG-VAN-ALAHK-YH
 
 ![hemoglobin distance heatmap](results/q2d_hemoglobins_distance.png)
 
-The guide tree for the hemoglobins separates the α-globin clade (HBA_*, HBAZ)
-from the β-like clade (HBB/HBD/HBG/HBE, plus the fish β chains). Inside the
-β-like clade, the human γ1/γ2 and ε chains group together, which matches the
-known embryonic/fetal versus adult globin paralogy. Note that HBA_ODOVI
-contains the ambiguity codes B (D/N) and Z (E/Q). The scoring treats these as
-ordinary letters.
+The hemoglobin guide tree splits into an α-globin group (HBA_* and HBAZ) and
+a β-like group (HBB/HBD/HBG/HBE and the two fish β chains), and the last merge
+joins these two groups. Inside the β-like group, human γ1/γ2 and ε (the
+embryonic/fetal globins) cluster together, separate from the adult β and δ
+chains. HBA_ODOVI contains the ambiguity codes B and Z; my scoring treats them
+as ordinary letters.
 
-**"Once a gap, always a gap".** In progressive alignment each merge is
-final. When two clusters are aligned, every gap is inserted into *all*
-sequences of the profile and is never removed or moved at later steps; later
-merges only add more gap columns. So an error made early in the guide tree
-(usually because only a few sequences were available to judge where the gap
-should go) is frozen and carried through to the final MSA. Later sequences
-that show clearly where the gap belongs cannot correct it. The result above
-shows the effect. In the last merge (α-clade with β-clade, d = 0.58) the two
-profiles are distant, and the linear gap penalty (−2 < −3 for a mismatch)
-leads to many scattered gap columns in the N-terminal region. Those columns
-are then forced on every sequence in both clades, although the closely related
-sequences within each clade were aligned almost gap-free at earlier steps.
+**"Once a gap, always a gap".** In progressive alignment, every merge is
+final. A gap added while aligning two clusters goes into *all* sequences of
+that cluster and is never moved or removed later; later merges can only add
+more gap columns. So if a gap is put in the wrong place early on (when only a
+few sequences are available to decide), that mistake stays in the final MSA,
+even if sequences added later would clearly show a better place for it. This
+can be seen in my hemoglobin MSA. Before the last merge, the α group (9
+sequences) was 156 columns long and the β-like group (20 sequences) was 174
+columns. The last merge joins two distant groups (d = 0.58), and because gaps
+are cheap with this scoring, it added 40 gap columns to every α sequence and
+22 to every β sequence. Many of these are single-gap columns scattered through
+the N-terminal half, and every sequence in each group is forced to carry them.
 
-**Ideas to overcome it:**
-
-* **Iterative refinement** (as in MUSCLE and MAFFT-iterative). After the
-  progressive pass, repeatedly split the guide tree at an edge, or remove one
-  sequence, strip the columns that become all-gap, re-align the two parts
-  profile-to-profile, and keep the new MSA only if its objective improves
-  (e.g. the sum-of-pairs score). Gaps placed early can then be moved or
-  removed.
-* **Consistency-based scoring** (as in T-Coffee). Before progressing, build a
-  library of all pairwise alignments, and score aligning residues x_i and y_j
-  by how many third sequences z support that match (x_i–z_k and z_k–y_j). This
-  information from all sequences is used from the very first merge, so early
-  decisions are already better informed.
-* **Better gap models** (as in ClustalW). Use affine gaps with a separate
-  gap-opening cost, and position-specific gap penalties: lower the penalty
-  where a profile already has gaps, raise it near existing gaps and inside
-  conserved or hydrophobic blocks. New gaps then line up with old ones
-  instead of fragmenting the alignment.
+**Idea to overcome it: iterative refinement** (used by e.g. MUSCLE). After
+the progressive MSA is built, repeatedly cut the guide tree at one edge (or
+take out one sequence), delete the columns that become all-gap, and realign the
+two parts with profile–profile alignment. The new MSA is kept only if its
+sum-of-pairs score improves. This way gaps placed early can still be moved or
+removed. Two other options are consistency-based scoring as in T-Coffee
+(score a residue pair by how many other sequences support it, so the early
+merges already use information from all sequences), and a better gap model as
+in ClustalW (affine gaps, and a lower penalty where a profile already has gaps,
+so new gaps line up with old ones).
 
 ---
 
@@ -1095,7 +1074,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.spatial import cKDTree
-from sklearn.metrics import adjusted_rand_score
+from sklearn.metrics import adjusted_rand_score, roc_auc_score
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "..", "data", "Q3")
@@ -1386,6 +1365,12 @@ def top_degs(adata, groupby, group, n=10):
     return df.head(n).reset_index(drop=True)
 
 
+def gene_expr(adata, g):
+    """Log-normalised expression of one gene (from adata.raw) as a 1-D array."""
+    x = adata.raw[:, g].X
+    return np.asarray(x.todense()).ravel() if sp.issparse(x) else np.asarray(x).ravel()
+
+
 def part_d(adata):
     log("\n" + "=" * 70 + "\n(d) Spatial marker genes (Wilcoxon one-vs-rest, "
         "ranked by adjusted p-value / z-score, up-regulated only)\n" + "=" * 70)
@@ -1416,10 +1401,16 @@ def part_d(adata):
     l1_gene = next(x for x in tables[("gt", "Layer1")]["names"] if x in set(tables[("cl", "Layer1")]["names"]))
     log(f"\nselected representative markers: WM -> {wm_gene}, Layer1 -> {l1_gene}")
 
+    # how well each top-10 ground-truth gene alone separates its layer from the rest
+    for layer in ("WM", "Layer1"):
+        y = (adata.obs["layer"] == layer).to_numpy()
+        aucs = {g: roc_auc_score(y, gene_expr(adata, g)) for g in tables[("gt", layer)]["names"]}
+        log(f"AUROC ({layer} vs rest): " +
+            ", ".join(f"{g} {a:.3f}" for g, a in sorted(aucs.items(), key=lambda kv: -kv[1])))
+
     fig, axes = plt.subplots(1, 2, figsize=(17, 8))
     for ax, g, lab in ((axes[0], wm_gene, "WM"), (axes[1], l1_gene, "Layer 1")):
-        expr = adata.raw[:, g].X
-        expr = np.asarray(expr.todense()).ravel() if sp.issparse(expr) else np.asarray(expr).ravel()
+        expr = gene_expr(adata, g)
         spatial_plot(adata, ax, values=expr, cmap="magma_r",
                      title=f"{g} (log-normalised expression) - {lab} marker")
     fig.tight_layout()
@@ -1439,8 +1430,8 @@ if __name__ == "__main__":
         fh.write("\n".join(log_lines) + "\n")
 ```
 
-Full log of the run: `results/q3_output.txt`. The random seed is fixed at 0
-for PCA, neighbours, UMAP and Leiden.
+The full log is in `results/q3_output.txt`. The random seed is 0 for PCA,
+neighbours, UMAP and Leiden, so the results can be reproduced.
 
 ### 3a. Quality control and preprocessing
 
@@ -1461,18 +1452,18 @@ PC1 vs layer (mean): Layer1 -3.32, Layer2 -3.28, Layer3 -3.38, Layer4 -2.90, Lay
 
 | Parameter | Choice | Reason |
 |---|---|---|
-| UMI threshold | **≥ 500 UMIs per spot** | The annotated spots have a median of 4,138 UMIs, but Layer 1 is cell-sparse and naturally low-depth (median 1,711). A stricter cut (e.g. 1,000–1,500) would mostly remove genuine Layer 1 tissue. 500 sits in the low tail of the log-UMI histogram and removes only the 7 clearly failed spots (3,611 → 3,604). |
+| UMI threshold | **≥ 500 UMIs per spot** | The median is 4,138 UMIs, but Layer 1 has few cells and much lower counts (median 1,711), so a stricter cut such as 1,000–1,500 would mainly throw away real Layer 1 spots. In the histogram, 500 falls in the empty gap between a few outlier spots and the main distribution, and it removes only those 7 spots (3,611 → 3,604). |
 | Gene filter | expressed in ≥ 10 spots | 16,567 / 33,538 genes kept |
 | Normalization | total = 10,000 per spot, then natural `log1p` | `X` = 3,604 × 16,567 log-normalized matrix (kept in `adata.raw` for DE) |
-| HVG count | **3,000** (`highly_variable_genes`, default flavour, on the log data) | In a resolution sweep, 3,000 HVGs separated layers slightly better than 2,000. The top HVGs include myelin/WM genes (MOBP, TF, TMEM144) and layer-specific neuronal genes (NPY). |
-| PC count | **30** | The variance ratio flattens after about 10–15 PCs (elbow plot). 30 keeps the weaker layer-specific signals without much noise. PC1 alone explains 9.4%. |
+| HVG count | **3,000** (`highly_variable_genes`, default flavour, on the log data) | In a trial run, 3,000 HVGs gave slightly higher ARI than 2,000. The most variable genes include white matter genes (MOBP, TF, TMEM144), but also immunoglobulin (IGHG3, IGKC) and hemoglobin (HBA1, HBB) genes, which probably come from blood vessels and blood cells in a few spots rather than from cortical layers. |
+| PC count | **30** | The elbow plot drops sharply after PC1 and flattens after about PC5. Later PCs each explain little variance, but layer differences other than WM vs grey matter are small, so I kept 30 PCs (18.5% of the HVG variance) rather than cutting at the elbow. PC1 alone explains 9.4%. |
 
 ![UMI histogram](results/q3a_umi_histogram.png)
 ![PCA](results/q3a_pca.png)
 
-**PC1 overlaid on the tissue image.** PC1 is essentially a white matter
-versus grey matter axis. It is high in the WM (mean +12.5), intermediate in
-Layer 6 (+1.0), and low in Layers 1–5 (≈ −2 to −3.4).
+**PC1 on the tissue image.** PC1 basically separates white matter from grey
+matter: the mean PC1 is +12.5 in WM, +1.0 in Layer 6 and between −2.1 and −3.4
+in Layers 1–5.
 
 ![PC1 spatial](results/q3a_pc1_spatial.png)
 
@@ -1495,9 +1486,9 @@ resolution scan (resolution, #clusters, ARI):
 chosen resolution 0.8: 6 clusters, ARI = 0.2542
 ```
 
-The selected resolution is **0.8, which gives 6 clusters**. This is the
-largest tested resolution that still falls in the requested 4–8 range;
-resolutions below 0.5 give only 2–3 clusters.
+I chose resolution **0.8, which gives 6 clusters**. Resolutions below 0.5
+give only 2–3 clusters, and 0.8 is the highest value I tried that stays within
+the 4–8 range.
 
 **ARI (Leiden vs pathologist annotation) = 0.2542**
 
@@ -1516,30 +1507,31 @@ leiden
 ![UMAP](results/q3b_umap.png)
 ![ground truth vs Leiden](results/q3b_spatial_clusters.png)
 
-Expression alone recovers WM (cluster 4) and a deep-layer/Layer 6 group well.
-The cortical layers are interleaved, however: clusters 0, 1, 2 and 5 each mix
-two or three neighbouring layers, and their spots are scattered across the
-tissue. That gives the moderate ARI.
+Using expression alone, WM is found well (cluster 4: 505 of its 626 spots
+are WM), and cluster 3 is mostly Layer 6. The other layers are mixed:
+clusters 0, 1, 2 and 5 each contain spots from three or four neighbouring
+layers, and in the spatial plot their spots are scattered rather than forming
+bands. This is why the ARI is only 0.25.
 
 ### 3c. Spatially smoothed clustering
 
 **Smoothing operation (two steps):**
 
-1. **Feature smoothing on the PCs.** The hexagonal neighbourhood graph is
-   built from the spot coordinates. The nearest-neighbour spacing is about
-   20.6 px and the second ring is at about 35.7 px, so spots within 31 px are
-   the ≤ 6 immediate neighbours (3,274 of 3,604 spots have all six; edge
-   spots have fewer). Each spot's PC vector is replaced by
-   **z̃_i = 0.5·z_i + 0.5·mean_{j∈N(i)} z_j**, i.e. X = 50% own expression and
-   50% the average of the hex neighbours. A spot with no neighbour keeps its
-   own PCs. The k-NN graph (k = 15) and Leiden are then re-run on z̃.
-   Averaging with neighbours, which mostly lie in the same cortical layer,
-   reduces the technical noise of individual spots (dropouts, depth) while
-   keeping the layer signal. Clusters therefore become spatially contiguous.
-2. **Label refinement.** A majority vote on the cluster labels over each spot
-   and its hex neighbours. A spot is relabelled only when a different label
-   has strictly more votes than its own, which removes isolated "salt and
-   pepper" spots.
+1. **Smoothing the PCs.** First I find each spot's hexagonal neighbours from
+   the coordinates. Neighbouring spots are about 20.6 px apart and the next
+   ring is about 35.7 px away, so I take all spots within 31 px as neighbours
+   (at most 6; 3,274 of the 3,604 spots have all six, spots on the tissue edge
+   have fewer). Then each spot's PC vector is replaced by
+   **z̃_i = 0.5·z_i + 0.5·mean_{j∈N(i)} z_j**, i.e. X = 50% (own PCs) and 50%
+   the average of its neighbours. The one spot with no neighbours keeps its
+   own PCs. The k-NN graph (k = 15) and Leiden clustering are then run again on
+   z̃. Neighbouring spots are usually in the same layer, so averaging reduces
+   the noise of single spots (dropouts, different depth) but keeps the layer
+   differences.
+2. **Cleaning the labels.** For each spot, I count the cluster labels of the
+   spot and its hex neighbours. If another label has more votes than the
+   spot's own label, the spot is relabelled. This removes single isolated spots
+   inside another cluster.
 
 ```
 hex neighbours per spot: 0.0:1, 1.0:5, 2.0:11, 3.0:72, 4.0:128, 5.0:113, 6.0:3274
@@ -1557,11 +1549,13 @@ step 1 (feature smoothing), res 0.3: 6 clusters, ARI = 0.3275
 step 2 (neighbour majority vote on labels): 58 spots relabelled, 6 clusters, ARI = 0.3290
 ```
 
-The selected resolution is **0.3, which gives 6 clusters** (in the 4–8 range).
+I chose resolution **0.3, which gives 6 clusters**, the same number as in 3b.
+(Resolution 0.5 gives a higher ARI, 0.354, but 9 clusters, which is outside the
+4–8 range.)
 
-**ARI (smoothed clusters vs annotation) = 0.3290** (0.3275 after step 1 alone),
-compared with **0.2542** without smoothing at the same number of clusters
-(6). That is a relative improvement of about 30%.
+**ARI (smoothed clusters vs annotation) = 0.3290** (0.3275 after step 1 only),
+compared with **0.2542** without smoothing for the same number of clusters, an
+improvement of about 30%.
 
 ```
 contingency (rows = smoothed cluster):
@@ -1577,31 +1571,24 @@ leiden_smooth
 
 ![ground truth vs smoothed](results/q3c_spatial_smoothed_clusters.png)
 
-The smoothed clusters are now contiguous bands that follow the laminar
-structure:
-
-* cluster 1: Layer 1 (213 of its 227 spots);
-* cluster 0: Layers 2/3, outer band;
-* cluster 2: Layer 3 to Layer 5;
-* clusters 4 and 5: Layers 5/6;
-* cluster 3: Layer 6 deep edge plus WM (513 of the 513 WM spots).
-
-The remaining disagreement comes mainly from the thin Layers 2 and 4. Each is
-only a few spots wide, so they are absorbed into neighbouring bands at this
-resolution.
+After smoothing, the clusters form continuous bands that follow the layers:
+cluster 1 is Layer 1 (213 of its 227 spots), cluster 0 is mostly Layers 2–3,
+cluster 2 covers Layers 3–5, clusters 4 and 5 are Layers 5–6, and cluster 3
+contains all 513 WM spots plus the deepest part of Layer 6. Most of the
+remaining errors are in the thin Layers 2 and 4, which are only a few spots
+wide and get merged into the neighbouring bands.
 
 ### 3d. Spatial marker gene discovery
 
 Method: one-vs-rest Wilcoxon rank-sum test (`sc.tl.rank_genes_groups`,
-`method="wilcoxon"`) on the full log-normalized matrix (16,567 genes,
-`adata.raw`), with Benjamini–Hochberg-adjusted p-values. Genes are ranked by
-the test statistic, which is the same order as adjusted p-value, and only
-up-regulated genes (log fold change > 0) are kept. The analysis was done
-(i) on the ground-truth classes WM and Layer 1, and (ii) on the smoothed
-clusters from 3c. The cluster matching each layer was chosen automatically as
-the cluster with the highest Jaccard overlap with that layer. That is
-cluster 3 for WM (innermost, J = 0.71) and cluster 1 for Layer 1 (outermost,
-J = 0.75).
+`method="wilcoxon"`) on all 16,567 genes of the log-normalized matrix
+(`adata.raw`), with Benjamini–Hochberg adjusted p-values. Genes are ranked by
+the Wilcoxon score (the same order as the adjusted p-value), keeping only genes
+that are higher in the group (log fold change > 0). I ran it once with the
+ground-truth labels (WM and Layer 1) and once with the smoothed clusters from
+3c. For the clusters, I took the cluster with the highest Jaccard overlap with
+each layer: cluster 3 for WM (the innermost one, J = 0.71) and cluster 1 for
+Layer 1 (the outermost one, J = 0.75).
 
 ```
 --- WM: ground-truth annotation 'WM' vs rest ---
@@ -1674,34 +1661,33 @@ overlap of top-10 lists: 9/10 -> ['MALAT1', 'COX6C', 'CLU', 'CST3', 'MT-ND2', 'M
 | 9 | S100B | S100B | MT-ND5 | MT-ND3 |
 | 10 | FTH1 | FTH1 | SLC1A2 | SLC1A2 |
 
-**Consistency.** The two analyses agree very closely.
+**Consistency.** The two sets of markers are very consistent.
 
-* **WM vs cluster 3: 10/10 genes shared**, in almost the same order. They are
-  the classic oligodendrocyte and myelin genes, MBP, PLP1, MOBP, CNP and TF
-  (transferrin), plus CRYAB, the white matter astrocyte marker GFAP, S100B,
-  PTGDS and FTH1. Cluster 3 overlaps WM strongly (all 513 WM spots plus about
-  200 deep Layer 6 spots), and myelin genes dominate both groups, so the
-  marker lists are essentially identical. The cluster's p-values are even
-  smaller because the cluster is larger.
-* **Layer 1 vs cluster 1: 9/10 genes shared** (MALAT1, COX6C, CLU, CST3,
-  GFAP, SLC1A2, MT-ND1/2/3). Cluster 1 adds MGP in place of MT-ND5. The
-  Layer 1 markers have much weaker effects (log fold change around 0.3–1.4)
-  than the WM markers (around 3–4). This fits the biology: Layer 1 is the
-  cell-sparse molecular layer under the pia. It has few neuronal cell bodies
-  and many astrocytes (the glia limitans) and neuropil. Astrocyte genes (GFAP,
-  CLU, CST3, SLC1A2) are therefore enriched, along with the nuclear lncRNA
-  MALAT1 and mitochondrial transcripts from neuropil. The meningeal and
-  vascular gene MGP is high at the pial surface, which cluster 1 covers.
-  Because cluster 1 is almost purely Layer 1 (213 of 227 spots), its marker
-  set closely reproduces the ground-truth set.
+* **WM vs cluster 3: all 10 genes are shared**, in almost the same order. Most
+  are myelin/oligodendrocyte genes (MBP, PLP1, MOBP, CNP, TF), together with
+  CRYAB, GFAP and S100B (also expressed by astrocytes in white matter), PTGDS
+  and FTH1. This is expected because cluster 3 contains all 513 WM spots (plus
+  about 200 deep Layer 6 spots). The p-values for cluster 3 are even smaller,
+  because the group is larger.
+* **Layer 1 vs cluster 1: 9 of 10 genes are shared** (MALAT1, COX6C, CLU,
+  CST3, GFAP, SLC1A2, MT-ND1/2/3); cluster 1 has MGP instead of MT-ND5. The
+  Layer 1 differences are much smaller (log fold change about 0.3–1.4,
+  compared with 3–4 for WM). This makes sense because Layer 1 has few neuron
+  cell bodies and is mainly astrocytes and neuronal processes, so the
+  enriched genes are astrocyte genes (GFAP, CLU, CST3, SLC1A2) plus MALAT1
+  and mitochondrial genes rather than one strong layer-specific gene. MGP is
+  a vascular/meningeal gene, which fits with cluster 1 lying along the pial
+  surface. Since cluster 1 is almost only Layer 1 spots (213 of 227), its
+  markers are almost the same as the ground-truth ones.
 
-**Representative markers.** **MBP** (myelin basic protein) is used for WM. It
-is the top-ranked gene in both analyses. **MALAT1** is used for Layer 1. It is
-the top ground-truth Layer 1 gene, ranks second in cluster 1, and has the
-highest single-gene AUROC for Layer 1 versus the rest (0.79). In the plots,
-MBP lights up the WM wedge (bottom-left) with a sharp boundary at Layer 6.
-MALAT1 is highest along the outer (pial) edge of the cortex, top-left and
-right border, where Layer 1 lies. It is more diffuse elsewhere, as expected
-for a weaker marker.
+**Representative markers.** For WM I chose **MBP** (myelin basic protein),
+the top gene in both analyses; on its own it separates WM from the other spots
+almost perfectly (AUROC 0.992). For Layer 1 I chose **MALAT1**, the top
+ground-truth Layer 1 gene and second in cluster 1. It is the best single
+Layer 1 gene, but much weaker (AUROC 0.793). In the plots, MBP is high in the
+WM region at the bottom left, with a sharp border to Layer 6. MALAT1 is
+highest along the outer edge of the cortex (top left and the right border),
+where Layer 1 is, but it is also high in the two small bumps on the bottom edge of the
+section, so it is not a perfectly specific marker.
 
 ![MBP and MALAT1](results/q3d_marker_genes_spatial.png)

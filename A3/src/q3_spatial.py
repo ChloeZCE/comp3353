@@ -20,7 +20,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from scipy.spatial import cKDTree
-from sklearn.metrics import adjusted_rand_score
+from sklearn.metrics import adjusted_rand_score, roc_auc_score
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(HERE, "..", "data", "Q3")
@@ -311,6 +311,12 @@ def top_degs(adata, groupby, group, n=10):
     return df.head(n).reset_index(drop=True)
 
 
+def gene_expr(adata, g):
+    """Log-normalised expression of one gene (from adata.raw) as a 1-D array."""
+    x = adata.raw[:, g].X
+    return np.asarray(x.todense()).ravel() if sp.issparse(x) else np.asarray(x).ravel()
+
+
 def part_d(adata):
     log("\n" + "=" * 70 + "\n(d) Spatial marker genes (Wilcoxon one-vs-rest, "
         "ranked by adjusted p-value / z-score, up-regulated only)\n" + "=" * 70)
@@ -341,10 +347,16 @@ def part_d(adata):
     l1_gene = next(x for x in tables[("gt", "Layer1")]["names"] if x in set(tables[("cl", "Layer1")]["names"]))
     log(f"\nselected representative markers: WM -> {wm_gene}, Layer1 -> {l1_gene}")
 
+    # how well each top-10 ground-truth gene alone separates its layer from the rest
+    for layer in ("WM", "Layer1"):
+        y = (adata.obs["layer"] == layer).to_numpy()
+        aucs = {g: roc_auc_score(y, gene_expr(adata, g)) for g in tables[("gt", layer)]["names"]}
+        log(f"AUROC ({layer} vs rest): " +
+            ", ".join(f"{g} {a:.3f}" for g, a in sorted(aucs.items(), key=lambda kv: -kv[1])))
+
     fig, axes = plt.subplots(1, 2, figsize=(17, 8))
     for ax, g, lab in ((axes[0], wm_gene, "WM"), (axes[1], l1_gene, "Layer 1")):
-        expr = adata.raw[:, g].X
-        expr = np.asarray(expr.todense()).ravel() if sp.issparse(expr) else np.asarray(expr).ravel()
+        expr = gene_expr(adata, g)
         spatial_plot(adata, ax, values=expr, cmap="magma_r",
                      title=f"{g} (log-normalised expression) - {lab} marker")
     fig.tight_layout()
