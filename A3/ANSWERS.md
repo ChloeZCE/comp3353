@@ -403,23 +403,14 @@ column-pair scores are computed at once from character counts
 13 seconds.
 
 ```python
-"""COMP3353 A3 Q2: simplified progressive multiple sequence alignment.
+"""COMP3353 A3 Q2 - progressive multiple sequence alignment.
 
-(a) Needleman-Wunsch global alignment of two sequences
-(b) sequence-to-profile alignment
-(c) pairwise identity distances + UPGMA guide tree
-(d) progressive MSA (profile-to-profile alignment following the guide tree)
+Scores: match +3, mismatch -3, residue vs gap -2, gap vs gap 0.
+A single sequence is treated as a profile with one row, so align_profiles()
+is used for parts a, b and d.
 
-Scoring: s(a,b) = +3 if a == b, -3 if a != b (both residues),
-         -2 if exactly one is a gap, 0 if both are gaps.
-
-Sequence-to-sequence and sequence-to-profile alignment are both special
-cases of the general profile-to-profile DP implemented in `align_profiles`
-(a single sequence is a profile with one row), so one DP is used throughout.
-
-Usage:
-    python q2_msa.py                       # runs every part on the course data
-    python q2_msa.py some_file.fa          # progressive MSA (part d) of any FASTA
+Run with no arguments to do all parts on the course data, or pass a FASTA
+file to get only its progressive MSA (part d).
 """
 import os
 import sys
@@ -439,7 +430,7 @@ RESULTS = os.path.join(HERE, "..", "results")
 
 
 def s(a, b):
-    """Pairwise scoring function between two characters (residue or gap)."""
+    """Score for one pair of characters (residue or gap)."""
     if a == GAP_CHAR and b == GAP_CHAR:
         return 0
     if a == GAP_CHAR or b == GAP_CHAR:
@@ -448,8 +439,8 @@ def s(a, b):
 
 
 def read_fasta(path):
-    """Return list of (name, sequence). Name = first header token; for
-    UniProt headers (sp|ACC|ENTRY) the entry name, e.g. HBA_HUMAN."""
+    """Read a FASTA file into a list of (name, sequence).
+    For UniProt headers like sp|P69905|HBA_HUMAN the name is HBA_HUMAN."""
     recs, name, buf = [], None, []
     with open(path) as f:
         for line in f:
@@ -469,13 +460,11 @@ def read_fasta(path):
     return recs
 
 
-# --------------------------------------------------------------- core DP
-def column_score_matrix(A, B):
-    """S[i, j] = average s(a, b) over a in column i of profile A and b in
-    column j of profile B, i.e. S(C_i, C_j) = 1/(|C_i||C_j|) sum s(a, b).
+# alignment DP
 
-    Computed with character-count vectors:  S = cA @ M @ cB^T / (|A||B|).
-    """
+def column_score_matrix(A, B):
+    """Average score S(C_i, C_j) for every column i of A and column j of B.
+    Uses letter counts per column instead of looping over every pair."""
     alphabet = sorted(set("".join(A)) | set("".join(B)) | {GAP_CHAR})
     idx = {c: k for k, c in enumerate(alphabet)}
     M = np.array([[s(a, b) for b in alphabet] for a in alphabet], dtype=float)
@@ -489,25 +478,21 @@ def column_score_matrix(A, B):
 
     cA, cB = counts(A), counts(B)
     pair = cA @ M @ cB.T / (len(A) * len(B))
-    # score of a column against an inserted all-gap column
-    gapA = cA @ M[:, idx[GAP_CHAR]] / len(A)      # column of A vs gap column
-    gapB = cB @ M[:, idx[GAP_CHAR]] / len(B)      # column of B vs gap column
+    # score of each column against a new all-gap column
+    gapA = cA @ M[:, idx[GAP_CHAR]] / len(A)
+    gapB = cB @ M[:, idx[GAP_CHAR]] / len(B)
     return pair, gapA, gapB
 
 
 def align_profiles(A, B):
-    """Global (Needleman-Wunsch) alignment of profile A (list of equal-length
-    aligned strings) with profile B. Returns (merged profile rows A+B, score).
-
-    D(i,j) = max{ D(i-1,j-1) + S(A_i, B_j),
-                  D(i-1,j)   + S(A_i, gap column),   # gap inserted into all of B
-                  D(i,j-1)   + S(gap column, B_j) }  # gap inserted into all of A
-    Tie-breaking order: diagonal > up > left.
+    """Needleman-Wunsch alignment of two profiles (lists of aligned strings).
+    Returns the merged rows (A's rows first, then B's) and the final score.
+    A gap is always added to every row of a profile. Ties: diag > up > left.
     """
     pair, gapA, gapB = column_score_matrix(A, B)
     n, m = len(A[0]), len(B[0])
     D = np.zeros((n + 1, m + 1))
-    T = np.zeros((n + 1, m + 1), dtype=np.int8)   # 0 diag, 1 up, 2 left
+    T = np.zeros((n + 1, m + 1), dtype=np.int8)   # traceback: 0 diag, 1 up, 2 left
     D[1:, 0] = np.cumsum(gapA)
     D[0, 1:] = np.cumsum(gapB)
     T[1:, 0] = 1
@@ -525,7 +510,7 @@ def align_profiles(A, B):
                 best, t = left, 2
             D[i, j] = best
             T[i, j] = t
-    # traceback from bottom-right to top-left
+    # trace back from the bottom-right corner
     i, j = n, m
     colsA, colsB = [], []
     while i > 0 or j > 0:
@@ -542,19 +527,19 @@ def align_profiles(A, B):
     return newA + newB, D[n, m]
 
 
-# --------------------------------------------------------------- (a)
+# part a
 def needleman_wunsch(x, y):
     (ax, ay), score = align_profiles([x], [y])
     return ax, ay, score
 
 
-# --------------------------------------------------------------- (b)
+# part b
 def align_seq_to_profile(profile, q):
     rows, score = align_profiles(profile, [q])
     return rows, score
 
 
-# --------------------------------------------------------------- (c)
+# part c
 def identity_distance(ax, ay):
     same = sum(1 for a, b in zip(ax, ay) if a == b and a != GAP_CHAR)
     return 1 - same / len(ax)
@@ -571,9 +556,8 @@ def distance_matrix(recs):
 
 
 def upgma(names, Dm):
-    """Return list of merges [(clusterA, clusterB, distance)], where each
-    cluster is a tuple of sequence names. Cluster distance = average of all
-    pairwise distances between members (UPGMA)."""
+    """UPGMA. Returns the merges in order as (cluster1, cluster2, distance),
+    where a cluster is a tuple of sequence names."""
     pos = {n: k for k, n in enumerate(names)}
     clusters = [(n,) for n in names]
     merges = []
@@ -596,10 +580,10 @@ def upgma(names, Dm):
     return merges
 
 
-# --------------------------------------------------------------- (d)
+# part d
 def progressive_msa(recs, merges):
     seqs = dict(recs)
-    profiles = {(n,): [seqs[n]] for n in seqs}      # cluster -> aligned rows
+    profiles = {(n,): [seqs[n]] for n in seqs}   # each sequence starts as its own profile
     for A, B, _ in merges:
         rows, _ = align_profiles(profiles.pop(A), profiles.pop(B))
         profiles[A + B] = rows
@@ -607,7 +591,7 @@ def progressive_msa(recs, merges):
     return list(zip(cluster, rows))
 
 
-# --------------------------------------------------------------- output
+# printing and plots
 def fmt_block(names, rows, width=None):
     w = max(len(n) for n in names)
     if width is None:
@@ -676,7 +660,7 @@ def main():
     ex, _ = align_seq_to_profile(["-KTAYIAKQRQISFVKSHFSRQDIL",
                                   "MKTAYIAKQRQISFVKSHFTRQ-IL"],
                                  "MKTAYIAKQREISFVKSHFSRQDIL")
-    rep.append("Worked example from the handout (P1, P2 profile + Q):\n"
+    rep.append("Example from the handout (P1, P2 profile + Q):\n"
                + fmt_block(["P1", "P2", "Q"], ex) + "\n")
     a1, a4, _ = needleman_wunsch(seq["S1"], seq["S4"])
     prof3, sc3 = align_seq_to_profile([a1, a4], seq["S2"])

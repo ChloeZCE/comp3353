@@ -12,7 +12,7 @@ S6  M--TEFKAGSAKKGATLF--KTRCLQCHTVEKGGPHKVGPNLHGIFGRHSGQAEGYSYTDANIK-KNVLWDE-NNM
 ======================================================================
 (b) Sequence-to-profile alignment
 ======================================================================
-Worked example from the handout (P1, P2 profile + Q):
+Example from the handout (P1, P2 profile + Q):
 P1  -KTAYIAKQRQISFVKSHFSRQDIL
 P2  MKTAYIAKQRQISFVKSHFTRQ-IL
 Q   MKTAYIAKQREISFVKSHFSRQDIL
