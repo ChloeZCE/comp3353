@@ -408,9 +408,6 @@ column-pair scores are computed at once from character counts
 Scores: match +3, mismatch -3, residue vs gap -2, gap vs gap 0.
 A single sequence is treated as a profile with one row, so align_profiles()
 is used for parts a, b and d.
-
-Run with no arguments to do all parts on the course data, or pass a FASTA
-file to get only its progressive MSA (part d).
 """
 import os
 import sys
